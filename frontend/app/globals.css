@@ -12,15 +12,21 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+* { box-sizing: border-box; }
+
+.auth-page { min-height: 100vh; display: grid; grid-template-columns: minmax(360px, 47%) 1fr; background: #fff; }
+.auth-hero { background: radial-gradient(circle at 9% 93%, #2563d3 0, transparent 29%), radial-gradient(circle at 82% 16%, #3c7bef 0, transparent 24%), #112a52; color: #fff; padding: 45px clamp(36px, 6vw, 92px); display: flex; flex-direction: column; position: relative; overflow: hidden; }
+.auth-hero::after { content: ""; position: absolute; width: 390px; height: 390px; border: 1px solid #ffffff25; border-radius: 50%; right: -170px; bottom: -160px; }
+.auth-brand, .mobile-brand { color: #fff; text-decoration: none; font-size: 20px; font-weight: 750; letter-spacing: -.5px; }.auth-brand span, .mobile-brand span { display: inline-grid; place-items: center; width: 31px; height: 31px; margin-right: 8px; background: #4682ef; border-radius: 9px; font-size: 16px; }
+.hero-copy { max-width: 475px; margin: auto 0 40px; position: relative; z-index: 1; }.hero-copy p, .auth-kicker { margin: 0 0 15px; color: #78a7ff; font-size: 11px; font-weight: 800; letter-spacing: 1.6px; }.hero-copy h1 { font-size: clamp(32px, 3.5vw, 49px); letter-spacing: -1.5px; line-height: 1.12; margin: 0 0 18px; }.hero-copy span { color: #cbd9ef; display: block; font-size: 16px; line-height: 1.65; max-width: 430px; }
+.hero-card { display: flex; align-items: center; gap: 12px; position: relative; z-index: 1; padding: 15px; max-width: 335px; border: 1px solid #ffffff1f; background: #ffffff0d; border-radius: 11px; backdrop-filter: blur(5px); }.hero-card i { display: grid; place-items: center; flex: 0 0 31px; height: 31px; border-radius: 50%; background: #397ce9; font-style: normal; font-weight: bold; }.hero-card strong, .hero-card small { display: block; }.hero-card strong { font-size: 13px; }.hero-card small { margin-top: 4px; color: #bfd1ed; font-size: 11px; }
+.auth-content { display: grid; place-items: center; padding: 40px 24px; background: #f7f9fd; }.auth-box { width: min(100%, 438px); background: #fff; border: 1px solid #e5eaf2; border-radius: 16px; box-shadow: 0 16px 42px #17335f14; padding: 38px; }.mobile-brand { display: none; color: #142d57; margin-bottom: 42px; }.auth-kicker { color: #4175ce; }.auth-box h2 { color: #14213a; margin: 0; font-size: 29px; letter-spacing: -.7px; }.auth-description { color: #758197; margin: 10px 0 30px; font-size: 14px; line-height: 1.55; }
+.auth-box form { display: grid; gap: 17px; }.auth-box form > label { color: #34435a; display: grid; gap: 8px; font-size: 13px; font-weight: 700; }.auth-box input:not([type="checkbox"]) { border: 1px solid #d9e0ea; border-radius: 8px; padding: 12px 13px; color: #1a2942; outline: none; font-size: 14px; transition: border-color .15s, box-shadow .15s; }.auth-box input:not([type="checkbox"]):focus { border-color: #3976df; box-shadow: 0 0 0 3px #3c7bec1c; }.form-options { display: flex; justify-content: space-between; align-items: center; margin-top: -2px; font-size: 12px; }.form-options a, .auth-switch a { color: #2768d9; font-weight: 700; text-decoration: none; }.remember { color: #68758b; display: flex; align-items: center; gap: 6px; }.remember input { accent-color: #2869db; }.auth-submit { margin-top: 4px; min-height: 46px; color: #fff; border: 0; background: #2869dc; border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700; transition: background .15s; }.auth-submit:hover:not(:disabled) { background: #1e58bc; }.auth-submit:disabled { cursor: wait; opacity: .7; }.form-error { margin: -5px 0 0; color: #c63939; border-radius: 7px; background: #fff0f0; padding: 10px 12px; font-size: 12px; }.auth-switch { color: #708096; margin: 24px 0 0; font-size: 13px; text-align: center; }
+@media (max-width: 760px) { .auth-page { display: block; }.auth-hero { display: none; }.auth-content { min-height: 100vh; align-items: start; padding-top: 42px; }.mobile-brand { display: block; } }
+@media (max-width: 480px) { .auth-content { padding: 20px 16px; }.auth-box { border-radius: 12px; padding: 28px 22px; box-shadow: 0 10px 28px #17335f10; }.mobile-brand { margin-bottom: 32px; }.auth-box h2 { font-size: 25px; } }
