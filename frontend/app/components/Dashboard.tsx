@@ -27,6 +27,16 @@ export default function Dashboard() {
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
+  const activeClaims = claims.filter(
+    (claim) => !["completed", "rejected"].includes(claim.status),
+  ).length;
+  const completedClaims = claims.filter((claim) => claim.status === "completed").length;
+  const rejectedClaims = claims.filter((claim) => claim.status === "rejected").length;
+  const receivedClaims = claims.filter((claim) => claim.status === "received").length;
+  const completionRate = claims.length
+    ? Math.round((completedClaims / claims.length) * 100)
+    : 0;
+
   useEffect(() => {
     if (!getToken()) {
       router.replace("/login");
@@ -67,44 +77,66 @@ export default function Dashboard() {
 
   return (
     <main className="dashboard-page">
-      <header className="dashboard-header">
-        <div>
-          <div className="dashboard-brand"><span>G</span> GaransiTech</div>
-          <p>Dashboard manajemen garansi</p>
-        </div>
-        <div className="dashboard-account">
+      <aside className="dashboard-sidebar">
+        <div className="dashboard-brand"><span>G</span> GaransiTech</div>
+        <nav className="dashboard-nav" aria-label="Navigasi utama">
+          <a className="nav-item active" href="#overview"><span>01</span> Ringkasan</a>
+          <a className="nav-item" href="#claims"><span>02</span> Klaim garansi</a>
+          <a className="nav-item" href="#activity"><span>03</span> Aktivitas</a>
+        </nav>
+        <div className="sidebar-footer">
+          <div className="account-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
           <div><strong>{user?.name}</strong><small>{user?.email}</small></div>
-          <button type="button" onClick={handleLogout}>Keluar</button>
+          <button type="button" onClick={handleLogout} aria-label="Keluar dari akun">Keluar</button>
         </div>
-      </header>
+      </aside>
 
-      <section className="dashboard-content">
-        <div className="dashboard-intro">
-          <div><p className="dashboard-kicker">RINGKASAN</p><h1>Selamat datang, {user?.name}</h1></div>
-          <div className="claim-count"><strong>{claims.length}</strong><span>Total klaim</span></div>
+      <section className="dashboard-main">
+        <header className="dashboard-topbar">
+          <div><p className="dashboard-kicker">PUSAT KONTROL</p><h1>Selamat datang, {user?.name}</h1></div>
+          <div className="topbar-date">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date())}</div>
+        </header>
+        <div className="dashboard-content" id="overview">
+          {error && <p className="form-error" role="alert">{error}</p>}
+          <section className="stats-grid" aria-label="Ringkasan klaim">
+            <article className="stat-card stat-primary"><div className="stat-label">TOTAL KLAIM</div><strong>{claims.length}</strong><span className="stat-note">Semua klaim terdaftar</span></article>
+            <article className="stat-card"><div className="stat-label">SEDANG DIPROSES</div><strong>{activeClaims}</strong><span className="stat-note positive">{receivedClaims} baru masuk</span></article>
+            <article className="stat-card"><div className="stat-label">SELESAI</div><strong>{completedClaims}</strong><span className="stat-note positive">{completionRate}% dari total klaim</span></article>
+            <article className="stat-card"><div className="stat-label">DITOLAK</div><strong>{rejectedClaims}</strong><span className="stat-note">Perlu perhatian</span></article>
+          </section>
+
+          <section className="dashboard-grid">
+            <article className="activity-card" id="activity">
+              <div className="section-heading"><div><p className="dashboard-kicker">PERFORMA</p><h2>Alur klaim</h2></div><span className="period-label">Saat ini</span></div>
+              <div className="progress-overview"><div><strong>{completionRate}%</strong><span>tingkat penyelesaian</span></div><div className="progress-ring" style={{ "--progress": `${completionRate * 3.6}deg` } as React.CSSProperties}><div>{completedClaims}/{claims.length || 0}</div></div></div>
+              <div className="status-bars"><div><span>Diterima</span><b>{receivedClaims}</b><i><em style={{ width: `${claims.length ? (receivedClaims / claims.length) * 100 : 0}%` }} /></i></div><div><span>Selesai</span><b>{completedClaims}</b><i><em className="bar-success" style={{ width: `${completionRate}%` }} /></i></div><div><span>Ditolak</span><b>{rejectedClaims}</b><i><em className="bar-danger" style={{ width: `${claims.length ? (rejectedClaims / claims.length) * 100 : 0}%` }} /></i></div></div>
+            </article>
+            <article className="insight-card">
+              <p className="dashboard-kicker">STATUS HARI INI</p><h2>Jaga ritme pelayanan</h2><p>{activeClaims ? `${activeClaims} klaim masih membutuhkan tindak lanjut.` : "Semua klaim sudah memiliki hasil akhir."}</p><div className="insight-line"><span>Target penyelesaian</span><strong>80%</strong></div><div className="target-track"><i style={{ width: `${Math.min(completionRate, 100)}%` }} /></div></article>
+          </section>
+
+          <section className="claims-card" id="claims">
+            <div className="claims-heading"><div><p className="dashboard-kicker">TERBARU</p><h2>Daftar klaim garansi</h2></div><span>{claims.length} klaim</span></div>
+            {claims.length === 0 ? (
+              <div className="empty-state"><strong>Belum ada klaim</strong><span>Data klaim garansi akan muncul di sini.</span></div>
+            ) : (
+              <div className="claims-table-wrap">
+                <table className="claims-table">
+                  <thead><tr><th>Kode klaim</th><th>Produk</th><th>Pelanggan</th><th>Tanggal</th><th>Status</th></tr></thead>
+                  <tbody>{claims.map((claim) => (
+                    <tr key={claim.id}>
+                      <td><strong>{claim.claim_code}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td>
+                      <td>{claim.product?.name || "-"}</td>
+                      <td>{claim.customer?.name || "-"}</td>
+                      <td>{new Date(claim.claim_date).toLocaleDateString("id-ID")}</td>
+                      <td><span className={`status-badge status-${claim.status}`}>{statusLabels[claim.status] || claim.status}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
+            )}
+          </section>
         </div>
-        {error && <p className="form-error" role="alert">{error}</p>}
-        <section className="claims-card">
-          <div className="claims-heading"><h2>Daftar klaim garansi</h2><span>{claims.length} klaim</span></div>
-          {claims.length === 0 ? (
-            <div className="empty-state">Belum ada klaim garansi.</div>
-          ) : (
-            <div className="claims-table-wrap">
-              <table className="claims-table">
-                <thead><tr><th>Kode klaim</th><th>Produk</th><th>Pelanggan</th><th>Tanggal</th><th>Status</th></tr></thead>
-                <tbody>{claims.map((claim) => (
-                  <tr key={claim.id}>
-                    <td><strong>{claim.claim_code}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td>
-                    <td>{claim.product?.name || "-"}</td>
-                    <td>{claim.customer?.name || "-"}</td>
-                    <td>{new Date(claim.claim_date).toLocaleDateString("id-ID")}</td>
-                    <td><span className={`status-badge status-${claim.status}`}>{statusLabels[claim.status] || claim.status}</span></td>
-                  </tr>
-                ))}</tbody>
-              </table>
-            </div>
-          )}
-        </section>
       </section>
     </main>
   );
