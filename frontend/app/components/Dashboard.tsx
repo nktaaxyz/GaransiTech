@@ -1,11 +1,15 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ApiUser,
   Claim,
+  DEMO_MODE,
   clearToken,
+  demoClaims,
+  demoUser,
   getClaims,
   getCurrentUser,
   getToken,
@@ -14,7 +18,7 @@ import {
 
 const statusLabels: Record<string, string> = {
   received: "Diterima",
-  forwaded_to_vendor: "Diteruskan ke vendor",
+  forwarded_to_vendor: "Diteruskan ke vendor",
   processing_by_vendor: "Diproses vendor",
   completed: "Selesai",
   rejected: "Ditolak",
@@ -49,6 +53,11 @@ export default function Dashboard() {
         setClaims(currentClaims);
       })
       .catch((requestError: unknown) => {
+        if (DEMO_MODE) {
+          setUser(demoUser);
+          setClaims(demoClaims);
+          return;
+        }
         clearToken();
         setError(
           requestError instanceof Error
@@ -80,9 +89,9 @@ export default function Dashboard() {
       <aside className="dashboard-sidebar">
         <div className="dashboard-brand"><span>G</span> GaransiTech</div>
         <nav className="dashboard-nav" aria-label="Navigasi utama">
-          <a className="nav-item active" href="#overview"><span>01</span> Ringkasan</a>
-          <a className="nav-item" href="#claims"><span>02</span> Klaim garansi</a>
-          <a className="nav-item" href="#activity"><span>03</span> Aktivitas</a>
+          <Link className="nav-item active" href="/"><span>01</span> Ringkasan</Link>
+          <Link className="nav-item" href="/claims"><span>02</span> Klaim garansi</Link>
+          <Link className="nav-item" href="/#activity"><span>03</span> Aktivitas</Link>
         </nav>
         <div className="sidebar-footer">
           <div className="account-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
@@ -93,8 +102,15 @@ export default function Dashboard() {
 
       <section className="dashboard-main">
         <header className="dashboard-topbar">
-          <div><p className="dashboard-kicker">PUSAT KONTROL</p><h1>Selamat datang, {user?.name}</h1></div>
-          <div className="topbar-date">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date())}</div>
+          <div>
+            <p className="dashboard-kicker">PUSAT KONTROL</p>
+            <h1>Selamat datang, {user?.name}</h1>
+            <p className="topbar-subtitle">Pantau garansi dan pastikan setiap klaim mendapat tindak lanjut.</p>
+          </div>
+          <div className="topbar-actions">
+            <div className="topbar-date">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date())}</div>
+            <Link className="primary-action" href="/claims">+ Catat klaim</Link>
+          </div>
         </header>
         <div className="dashboard-content" id="overview">
           {error && <p className="form-error" role="alert">{error}</p>}
@@ -103,6 +119,12 @@ export default function Dashboard() {
             <article className="stat-card"><div className="stat-label">SEDANG DIPROSES</div><strong>{activeClaims}</strong><span className="stat-note positive">{receivedClaims} baru masuk</span></article>
             <article className="stat-card"><div className="stat-label">SELESAI</div><strong>{completedClaims}</strong><span className="stat-note positive">{completionRate}% dari total klaim</span></article>
             <article className="stat-card"><div className="stat-label">DITOLAK</div><strong>{rejectedClaims}</strong><span className="stat-note">Perlu perhatian</span></article>
+          </section>
+
+          <section className="workspace-strip" aria-label="Modul kerja">
+            <div><span className="workspace-icon">G</span><div><strong>Garansi &amp; unit produk</strong><span>Kelola masa berlaku dan serial number</span></div></div>
+            <div><span className="workspace-icon workspace-icon-warm">K</span><div><strong>Klaim masuk</strong><span>{activeClaims} klaim perlu ditindaklanjuti</span></div></div>
+            <Link href="/claims">Buka daftar klaim <span>→</span></Link>
           </section>
 
           <section className="dashboard-grid">
