@@ -12,6 +12,7 @@ class Warranty_claims extends Model
 
     protected $fillable = [
         'claim_code',
+        'warranty_id',
         'customer_id',
         'product_id',
         'vendor_id',
@@ -36,6 +37,11 @@ class Warranty_claims extends Model
     public function statusLogs(): HasMany
     {
         return $this->hasMany(ClaimStatusLog::class, 'claim_id');
+    }
+
+    public function warranty(): BelongsTo
+    {
+        return $this->belongsTo(Warranty::class);
     }
 
     public function customer(): BelongsTo

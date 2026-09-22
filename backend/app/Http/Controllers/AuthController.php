@@ -14,14 +14,16 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
-            'email' => ['required', 'email', 'max:255', 'unique:users,email'],
+            'email' => ['required', 'email:rfc', 'max:255', 'unique:users,email'],
             'password' => ['required', 'string', 'min:8', 'confirmed'],
         ]);
+        $validated['email'] = strtolower($validated['email']);
 
         $user = User::create($validated);
-        $token = $user->createToken('api-token')->plainTextToken;
+        $token = $user->createToken('garansitech-web')->plainTextToken;
 
         return response()->json([
+            'message' => 'Registrasi berhasil.',
             'user' => $user,
             'token' => $token,
         ], 201);
@@ -30,11 +32,11 @@ class AuthController extends Controller
     public function login(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'email' => ['required', 'email'],
+            'email' => ['required', 'email:rfc'],
             'password' => ['required', 'string'],
         ]);
 
-        $user = User::where('email', $validated['email'])->first();
+        $user = User::where('email', strtolower($validated['email']))->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
@@ -43,8 +45,9 @@ class AuthController extends Controller
         }
 
         return response()->json([
+            'message' => 'Login berhasil.',
             'user' => $user,
-            'token' => $user->createToken('api-token')->plainTextToken,
+            'token' => $user->createToken('garansitech-web')->plainTextToken,
         ]);
     }
 
