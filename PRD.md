@@ -5,7 +5,7 @@
 **Sistem Manajemen Garansi dan Klaim Produk Berbasis Web**  
 Versi: 1.0  
 Status: Draft implementasi  
-Tanggal: 22 September 2026
+
 
 ## 1. Ringkasan Produk
 
