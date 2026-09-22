@@ -5,7 +5,29 @@
 Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis yang dapat dikerjakan bertahap.
 
 **Versi:** 1.0  
-**Status:** Ready for implementation
+**Status:** In progress
+
+## Progress Tracker
+
+- [x] Tahap 0 — Finalisasi aturan bisnis.
+- [x] Tahap 1 — Stabilitas autentikasi admin (backend).
+- [x] Tahap 2 — Penyelarasan database dan model.
+- [x] Tahap 3A — API Customer (backend).
+- [ ] Tahap 3B — API Vendor (backend).
+- [ ] Tahap 3C — API Product (backend).
+- [ ] Tahap 3D — API Product Unit (backend).
+- [ ] Tahap 4 — Registrasi dan pemantauan garansi.
+- [ ] Tahap 5 — Klaim dan riwayat penanganan lengkap.
+- [ ] Tahap 6 — Dashboard, pencarian, dan laporan.
+- [ ] Tahap 7 — Klasifikasi AI sebagai rekomendasi.
+- [ ] Tahap 8 — Audit aktivitas dan keamanan lanjutan.
+- [ ] Tahap 9 — Pengujian integrasi dan rilis.
+
+### Task aktif
+
+**Task berikutnya:** Tahap 3B — API Vendor (backend).
+
+**Aturan pengerjaan:** satu modul backend diselesaikan dan diuji sebelum pindah ke modul berikutnya. Frontend dikerjakan setelah API backend untuk modul terkait stabil.
 
 ## 1. Prinsip Implementasi
 
@@ -67,7 +89,7 @@ Struktur fitur frontend:
 
 ## 4. Tahapan Implementasi
 
-## Tahap 0 — Finalisasi aturan bisnis
+## Tahap 0 — Finalisasi aturan bisnis ✅
 
 **Tujuan:** memastikan implementasi mengikuti kebutuhan mitra dan PRD.
 
@@ -84,7 +106,7 @@ Output:
 - Aturan bisnis final.
 - Daftar status dan transisi status yang disepakati.
 
-## Tahap 1 — Stabilitas autentikasi admin
+## Tahap 1 — Stabilitas autentikasi admin ✅ (backend)
 
 **Tujuan:** memastikan semua halaman data terlindungi.
 
@@ -121,7 +143,7 @@ Kriteria selesai:
 - Endpoint terlindungi menolak request tanpa token.
 - Logout menonaktifkan token aktif.
 
-## Tahap 2 — Penyelarasan database dan model
+## Tahap 2 — Penyelarasan database dan model ✅
 
 **Tujuan:** membuat model data mendukung alur registrasi garansi tanpa mencatat semua transaksi.
 
@@ -154,16 +176,58 @@ Kriteria selesai:
 - Relasi dapat digunakan tanpa query manual.
 - Data referensi tidak dapat dihapus jika melanggar aturan bisnis.
 
-## Tahap 3 — API data master
+## Tahap 3 — API data master 🟡
 
 **Tujuan:** menyediakan data yang dibutuhkan sebelum registrasi garansi dibuat.
 
 Modul:
 
-- Customers
-- Vendors
-- Products
-- Product units
+- [x] Customers (backend)
+- [ ] Vendors (backend)
+- [ ] Products (backend)
+- [ ] Product units (backend)
+
+### Task 3A — Customer API (selesai)
+
+- [x] Buat `CustomerController`.
+- [x] Tambahkan route CRUD customer yang dilindungi Sanctum.
+- [x] Tambahkan validasi nama dan nomor telepon.
+- [x] Tambahkan pencarian nama/nomor telepon dan pagination.
+- [x] Tampilkan jumlah unit produk pada daftar/detail.
+- [x] Tampilkan unit produk dan garansi pada detail customer.
+- [x] Tolak penghapusan customer yang masih memiliki unit/klaim.
+- [x] Tambahkan feature test CRUD, search, validasi, authorization, dan aturan hapus.
+
+### Task 3B — Vendor API (berikutnya)
+
+- [ ] Lengkapi relasi dan `$fillable` model Vendor.
+- [ ] Buat `VendorController`.
+- [ ] Tambahkan endpoint CRUD vendor terproteksi Sanctum.
+- [ ] Tambahkan pencarian nama, contact person, dan email.
+- [ ] Tambahkan pagination dan `products_count`.
+- [ ] Tolak penghapusan vendor yang masih memiliki produk.
+- [ ] Tambahkan feature test CRUD, search, validasi, authorization, dan aturan hapus.
+
+### Task 3C — Product API
+
+- [ ] Lengkapi model Product dan relasi vendor/product units.
+- [ ] Buat `ProductController`.
+- [ ] Tambahkan endpoint CRUD product terproteksi Sanctum.
+- [ ] Validasi vendor yang dipilih harus tersedia.
+- [ ] Tambahkan pencarian nama/kategori dan pagination.
+- [ ] Tolak penghapusan product yang masih memiliki unit.
+- [ ] Tambahkan feature test.
+
+### Task 3D — Product Unit API
+
+- [ ] Lengkapi model ProductUnit dan relasi customer/product/warranty.
+- [ ] Buat `ProductUnitController`.
+- [ ] Tambahkan endpoint CRUD product unit terproteksi Sanctum.
+- [ ] Validasi serial number unik.
+- [ ] Validasi product dan customer yang dipilih harus tersedia.
+- [ ] Tambahkan pencarian serial number, customer, dan product.
+- [ ] Tolak penghapusan unit yang sudah memiliki garansi atau klaim.
+- [ ] Tambahkan feature test.
 
 Endpoint target:
 
@@ -208,7 +272,7 @@ Frontend:
 - Konfirmasi sebelum hapus.
 - Empty state, loading state, dan error state.
 
-## Tahap 4 — Registrasi dan pemantauan garansi
+## Tahap 4 — Registrasi dan pemantauan garansi ⏳
 
 **Tujuan:** mencatat hanya unit yang perlu digaransikan dan memantau masa berlakunya.
 
@@ -246,7 +310,7 @@ Kriteria selesai:
 - Status aktif/akan berakhir/berakhir sesuai tanggal.
 - Garansi tidak dapat dibuat untuk unit yang tidak valid.
 
-## Tahap 5 — Klaim dan riwayat penanganan
+## Tahap 5 — Klaim dan riwayat penanganan ⏳
 
 **Tujuan:** mendukung proses klaim dari pencatatan sampai selesai.
 
@@ -295,7 +359,7 @@ Kriteria selesai:
 - Setiap perubahan status memiliki waktu, admin, dan catatan.
 - Status final tidak dapat diubah tanpa aturan yang disepakati.
 
-## Tahap 6 — Dashboard, pencarian, dan laporan
+## Tahap 6 — Dashboard, pencarian, dan laporan ⏳
 
 **Tujuan:** membantu admin memantau kondisi layanan garansi.
 
@@ -322,7 +386,7 @@ Frontend:
 - Filter periode laporan.
 - Pencarian dengan debounce dan pagination.
 
-## Tahap 7 — Klasifikasi AI sebagai rekomendasi
+## Tahap 7 — Klasifikasi AI sebagai rekomendasi ⏳
 
 **Tujuan:** membantu admin mengelompokkan keluhan tanpa mengambil keputusan otomatis.
 
@@ -342,7 +406,7 @@ Kriteria selesai:
 - Admin dapat mengoreksi rekomendasi.
 - Kegagalan AI tidak memblokir workflow klaim.
 
-## Tahap 8 — Audit aktivitas dan keamanan
+## Tahap 8 — Audit aktivitas dan keamanan ⏳
 
 **Tujuan:** menyediakan penelusuran aktivitas admin dan memperkuat keamanan.
 
@@ -356,7 +420,7 @@ Pekerjaan:
 - Gunakan HTTPS pada lingkungan produksi.
 - Review CORS dan environment variables sebelum deployment.
 
-## Tahap 9 — Pengujian dan rilis
+## Tahap 9 — Pengujian dan rilis ⏳
 
 ### Backend
 
