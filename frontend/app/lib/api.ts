@@ -18,8 +18,37 @@ export type Claim = {
   vendor?: { name: string };
 };
 
+export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
+export const demoUser: ApiUser = {
+  id: 0,
+  name: "Admin Demo",
+  email: "admin@example.com",
+};
+export const demoClaims: Claim[] = [];
+
+export type ProductUnit = {
+  id: number;
+  serial_number: string;
+  product?: { name: string };
+  customer?: { name: string };
+};
+
+export type Warranty = {
+  id: number;
+  warranty_code: string;
+  start_date: string;
+  end_date: string;
+  notes: string | null;
+  status: "active" | "expiring" | "expired";
+  product_unit: ProductUnit;
+};
+
 type PaginatedClaims = {
   data: Claim[];
+};
+
+type Paginated<T> = {
+  data: T[];
 };
 
 export function getToken(): string | null {
@@ -63,6 +92,32 @@ export function getCurrentUser(): Promise<ApiUser> {
 export async function getClaims(): Promise<Claim[]> {
   const response = await request<PaginatedClaims>("/claims");
   return response.data;
+}
+
+export async function getWarranties(search = "", status = ""): Promise<Warranty[]> {
+  const params = new URLSearchParams();
+  if (search.trim()) params.set("search", search.trim());
+  if (status) params.set("status", status);
+  const suffix = params.toString() ? `?${params.toString()}` : "";
+  const response = await request<Paginated<Warranty>>(`/warranties${suffix}`);
+  return response.data;
+}
+
+export async function getProductUnits(): Promise<ProductUnit[]> {
+  const response = await request<Paginated<ProductUnit>>("/product-units");
+  return response.data;
+}
+
+export function createWarranty(input: {
+  product_unit_id: number;
+  start_date: string;
+  end_date: string;
+  notes?: string;
+}): Promise<Warranty> {
+  return request<Warranty>("/warranties", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
 }
 
 export function logout(): Promise<{ message: string }> {

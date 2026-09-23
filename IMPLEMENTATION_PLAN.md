@@ -13,9 +13,9 @@ Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis ya
 - [x] Tahap 1 — Stabilitas autentikasi admin (backend).
 - [x] Tahap 2 — Penyelarasan database dan model.
 - [x] Tahap 3A — API Customer (backend).
-- [ ] Tahap 3B — API Vendor (backend).
-- [ ] Tahap 3C — API Product (backend).
-- [ ] Tahap 3D — API Product Unit (backend).
+- [x] Tahap 3B — API Vendor (backend).
+- [x] Tahap 3C — API Product (backend).
+- [x] Tahap 3D — API Product Unit (backend).
 - [ ] Tahap 4 — Registrasi dan pemantauan garansi.
 - [ ] Tahap 5 — Klaim dan riwayat penanganan lengkap.
 - [ ] Tahap 6 — Dashboard, pencarian, dan laporan.
@@ -25,7 +25,7 @@ Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis ya
 
 ### Task aktif
 
-**Task berikutnya:** Tahap 3B — API Vendor (backend).
+**Task berikutnya:** Tahap 4 — Registrasi dan pemantauan garansi.
 
 **Aturan pengerjaan:** satu modul backend diselesaikan dan diuji sebelum pindah ke modul berikutnya. Frontend dikerjakan setelah API backend untuk modul terkait stabil.
 
@@ -176,16 +176,16 @@ Kriteria selesai:
 - Relasi dapat digunakan tanpa query manual.
 - Data referensi tidak dapat dihapus jika melanggar aturan bisnis.
 
-## Tahap 3 — API data master 🟡
+## Tahap 3 — API data master ✅
 
 **Tujuan:** menyediakan data yang dibutuhkan sebelum registrasi garansi dibuat.
 
 Modul:
 
 - [x] Customers (backend)
-- [ ] Vendors (backend)
-- [ ] Products (backend)
-- [ ] Product units (backend)
+- [x] Vendors (backend)
+- [x] Products (backend)
+- [x] Product units (backend)
 
 ### Task 3A — Customer API (selesai)
 
@@ -198,36 +198,36 @@ Modul:
 - [x] Tolak penghapusan customer yang masih memiliki unit/klaim.
 - [x] Tambahkan feature test CRUD, search, validasi, authorization, dan aturan hapus.
 
-### Task 3B — Vendor API (berikutnya)
+### Task 3B — Vendor API (selesai)
 
-- [ ] Lengkapi relasi dan `$fillable` model Vendor.
-- [ ] Buat `VendorController`.
-- [ ] Tambahkan endpoint CRUD vendor terproteksi Sanctum.
-- [ ] Tambahkan pencarian nama, contact person, dan email.
-- [ ] Tambahkan pagination dan `products_count`.
-- [ ] Tolak penghapusan vendor yang masih memiliki produk.
-- [ ] Tambahkan feature test CRUD, search, validasi, authorization, dan aturan hapus.
+- [x] Lengkapi relasi dan `$fillable` model Vendor.
+- [x] Buat `VendorController`.
+- [x] Tambahkan endpoint CRUD vendor terproteksi Sanctum.
+- [x] Tambahkan pencarian nama, contact person, dan email.
+- [x] Tambahkan pagination dan `products_count`.
+- [x] Tolak penghapusan vendor yang masih memiliki produk.
+- [x] Tambahkan feature test CRUD, search, validasi, authorization, dan aturan hapus.
 
-### Task 3C — Product API
+### Task 3C — Product API (selesai)
 
-- [ ] Lengkapi model Product dan relasi vendor/product units.
-- [ ] Buat `ProductController`.
-- [ ] Tambahkan endpoint CRUD product terproteksi Sanctum.
-- [ ] Validasi vendor yang dipilih harus tersedia.
-- [ ] Tambahkan pencarian nama/kategori dan pagination.
-- [ ] Tolak penghapusan product yang masih memiliki unit.
-- [ ] Tambahkan feature test.
+- [x] Lengkapi model Product dan relasi vendor/product units.
+- [x] Buat `ProductController`.
+- [x] Tambahkan endpoint CRUD product terproteksi Sanctum.
+- [x] Validasi vendor yang dipilih harus tersedia.
+- [x] Tambahkan pencarian nama/kategori dan pagination.
+- [x] Tolak penghapusan product yang masih memiliki unit.
+- [x] Tambahkan feature test.
 
-### Task 3D — Product Unit API
+### Task 3D — Product Unit API (selesai)
 
-- [ ] Lengkapi model ProductUnit dan relasi customer/product/warranty.
-- [ ] Buat `ProductUnitController`.
-- [ ] Tambahkan endpoint CRUD product unit terproteksi Sanctum.
-- [ ] Validasi serial number unik.
-- [ ] Validasi product dan customer yang dipilih harus tersedia.
-- [ ] Tambahkan pencarian serial number, customer, dan product.
-- [ ] Tolak penghapusan unit yang sudah memiliki garansi atau klaim.
-- [ ] Tambahkan feature test.
+- [x] Lengkapi model ProductUnit dan relasi customer/product/warranty.
+- [x] Buat `ProductUnitController`.
+- [x] Tambahkan endpoint CRUD product unit terproteksi Sanctum.
+- [x] Validasi serial number unik.
+- [x] Validasi product dan customer yang dipilih harus tersedia.
+- [x] Tambahkan pencarian serial number, customer, dan product.
+- [x] Tolak penghapusan unit yang sudah memiliki garansi atau klaim.
+- [x] Tambahkan feature test.
 
 Endpoint target:
 
@@ -272,18 +272,18 @@ Frontend:
 - Konfirmasi sebelum hapus.
 - Empty state, loading state, dan error state.
 
-## Tahap 4 — Registrasi dan pemantauan garansi ⏳
+## Tahap 4 — Registrasi dan pemantauan garansi 🟡
 
 **Tujuan:** mencatat hanya unit yang perlu digaransikan dan memantau masa berlakunya.
 
 Backend:
 
-- Endpoint CRUD warranties.
-- Generate `warranty_code` unik di server.
-- Validasi tanggal mulai dan tanggal berakhir.
-- Hitung status secara dinamis dari tanggal saat ini.
-- Sediakan filter `active`, `expiring`, dan `expired`.
-- Sediakan pencarian kode garansi, customer, produk, dan serial number.
+- [x] Endpoint CRUD warranties.
+- [x] Generate `warranty_code` unik di server.
+- [x] Validasi tanggal mulai dan tanggal berakhir.
+- [x] Hitung status secara dinamis dari tanggal saat ini.
+- [x] Sediakan filter `active`, `expiring`, dan `expired`.
+- [x] Sediakan pencarian kode garansi, customer, produk, dan serial number.
 
 Endpoint target:
 
@@ -297,11 +297,11 @@ DELETE /api/warranties/{warranty}
 
 Frontend:
 
-- Daftar garansi.
-- Form registrasi garansi.
-- Detail garansi dan unit produk.
-- Badge status garansi.
-- Filter garansi yang akan berakhir.
+- [x] Daftar garansi.
+- [x] Form registrasi garansi.
+- [ ] Detail garansi dan unit produk.
+- [x] Badge status garansi.
+- [x] Filter garansi yang akan berakhir.
 
 Kriteria selesai:
 
@@ -310,19 +310,19 @@ Kriteria selesai:
 - Status aktif/akan berakhir/berakhir sesuai tanggal.
 - Garansi tidak dapat dibuat untuk unit yang tidak valid.
 
-## Tahap 5 — Klaim dan riwayat penanganan ⏳
+## Tahap 5 — Klaim dan riwayat penanganan 🟡
 
 **Tujuan:** mendukung proses klaim dari pencatatan sampai selesai.
 
 Backend:
 
-- Buat klaim berdasarkan garansi yang dipilih.
-- Verifikasi garansi ditemukan dan masih berlaku.
-- Generate kode klaim unik.
-- Simpan deskripsi kerusakan.
-- Sediakan status klaim dan transisi yang valid.
-- Simpan setiap perubahan pada `claim_status_logs`.
-- Gunakan transaction database saat mengubah klaim dan log.
+- [x] Buat klaim berdasarkan garansi yang dipilih.
+- [x] Verifikasi garansi ditemukan dan masih berlaku.
+- [x] Generate kode klaim unik.
+- [x] Simpan deskripsi kerusakan.
+- [x] Sediakan status klaim dan transisi yang valid.
+- [x] Simpan setiap perubahan pada `claim_status_logs`.
+- [x] Gunakan transaction database saat mengubah klaim dan log.
 
 Endpoint target:
 
@@ -359,16 +359,16 @@ Kriteria selesai:
 - Setiap perubahan status memiliki waktu, admin, dan catatan.
 - Status final tidak dapat diubah tanpa aturan yang disepakati.
 
-## Tahap 6 — Dashboard, pencarian, dan laporan ⏳
+## Tahap 6 — Dashboard, pencarian, dan laporan 🟡
 
 **Tujuan:** membantu admin memantau kondisi layanan garansi.
 
 Backend:
 
-- Endpoint ringkasan dashboard.
-- Query agregasi jumlah garansi per status.
-- Query agregasi klaim per status dan periode.
-- Pencarian terindeks pada data yang sering dipakai.
+- [x] Endpoint ringkasan dashboard.
+- [x] Query agregasi jumlah garansi per status.
+- [x] Query agregasi klaim per status dan periode.
+- [x] Pencarian pada data yang sering dipakai.
 
 Endpoint target:
 
@@ -406,30 +406,32 @@ Kriteria selesai:
 - Admin dapat mengoreksi rekomendasi.
 - Kegagalan AI tidak memblokir workflow klaim.
 
-## Tahap 8 — Audit aktivitas dan keamanan ⏳
+## Tahap 8 — Audit aktivitas dan keamanan 🟡
 
 **Tujuan:** menyediakan penelusuran aktivitas admin dan memperkuat keamanan.
 
 Pekerjaan:
 
-- Tambahkan `activity_logs` bila disetujui.
-- Catat aktivitas create, update, delete, login, logout, dan perubahan status.
-- Tambahkan rate limiting untuk autentikasi.
-- Pastikan data sensitif tidak masuk log aplikasi.
-- Validasi authorization pada setiap endpoint.
-- Gunakan HTTPS pada lingkungan produksi.
-- Review CORS dan environment variables sebelum deployment.
+- [x] Tambahkan `activity_logs`.
+- [x] Catat aktivitas create, update, delete, login, logout, dan perubahan status.
+- [x] Tambahkan rate limiting untuk autentikasi.
+- [x] Pastikan data sensitif tidak masuk log aplikasi.
+- [x] Validasi authorization pada setiap endpoint.
+- [ ] Gunakan HTTPS pada lingkungan produksi.
+- [x] Review CORS dan environment variables sebelum deployment.
 
-## Tahap 9 — Pengujian dan rilis ⏳
+## Tahap 9 — Pengujian dan rilis 🟡
 
 ### Backend
 
-- Feature test login, logout, dan endpoint terlindungi.
-- Feature test CRUD data master.
-- Feature test validasi serial number dan kode unik.
-- Feature test status masa garansi.
-- Feature test pembuatan dan perubahan klaim.
-- Test relasi dan aturan penghapusan.
+- [x] Feature test login, logout, dan endpoint terlindungi.
+- [x] Feature test CRUD data master.
+- [x] Feature test validasi serial number dan kode unik.
+- [x] Feature test status masa garansi.
+- [x] Feature test pembuatan dan perubahan klaim.
+- [x] Test relasi dan aturan penghapusan.
+- [x] Integration test alur customer sampai claim selesai.
+- [x] Verifikasi `migrate:fresh --seed` pada environment testing.
 
 ### Frontend
 

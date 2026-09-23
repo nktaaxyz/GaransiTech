@@ -446,6 +446,14 @@ body {
   background: #fff0f0;
   color: #c63939;
 }
+.status-expiring {
+  background: #fff6df;
+  color: #a56800;
+}
+.status-expired {
+  background: #fff0f0;
+  color: #c63939;
+}
 .empty-state,
 .dashboard-state {
   padding: 55px 24px;

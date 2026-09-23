@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,13 @@ class AuthController extends Controller
 
         $user = User::create($validated);
         $token = $user->createToken('garansitech-web')->plainTextToken;
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'ip_address' => $request->ip(),
+        ]);
 
         return response()->json([
             'message' => 'Registrasi berhasil.',
@@ -44,6 +52,14 @@ class AuthController extends Controller
             ]);
         }
 
+        ActivityLog::create([
+            'user_id' => $user->id,
+            'action' => 'login',
+            'auditable_type' => User::class,
+            'auditable_id' => $user->id,
+            'ip_address' => $request->ip(),
+        ]);
+
         return response()->json([
             'message' => 'Login berhasil.',
             'user' => $user,
@@ -53,6 +69,13 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        ActivityLog::create([
+            'user_id' => $request->user()->id,
+            'action' => 'logout',
+            'auditable_type' => User::class,
+            'auditable_id' => $request->user()->id,
+            'ip_address' => $request->ip(),
+        ]);
         $request->user()->currentAccessToken()?->delete();
 
         return response()->json([

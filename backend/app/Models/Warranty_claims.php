@@ -17,6 +17,7 @@ class Warranty_claims extends Model
         'product_id',
         'vendor_id',
         'serial_number',
+        'damage_description',
         'claim_date',
         'status',
         'forwarded_date',

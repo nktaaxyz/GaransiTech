@@ -6,6 +6,13 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
+use App\Models\Customer;
+use App\Models\Product;
+use App\Models\ProductUnit;
+use App\Models\Vendor;
+use App\Models\Warranty;
+use App\Models\Warranty_claims;
+use App\Observers\ActivityLogObserver;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -27,5 +34,16 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(5)->by($email.'|'.$request->ip());
         });
+
+        foreach ([
+            Customer::class,
+            Vendor::class,
+            Product::class,
+            ProductUnit::class,
+            Warranty::class,
+            Warranty_claims::class,
+        ] as $model) {
+            $model::observe(ActivityLogObserver::class);
+        }
     }
 }
