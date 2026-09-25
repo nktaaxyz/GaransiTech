@@ -18,14 +18,6 @@ export type Claim = {
   vendor?: { name: string };
 };
 
-export const DEMO_MODE = process.env.NEXT_PUBLIC_DEMO_MODE === "true";
-export const demoUser: ApiUser = {
-  id: 0,
-  name: "Admin Demo",
-  email: "admin@example.com",
-};
-export const demoClaims: Claim[] = [];
-
 export type ProductUnit = {
   id: number;
   serial_number: string;

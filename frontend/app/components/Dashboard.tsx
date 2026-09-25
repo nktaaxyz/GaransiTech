@@ -6,10 +6,7 @@ import { useRouter } from "next/navigation";
 import {
   ApiUser,
   Claim,
-  DEMO_MODE,
   clearToken,
-  demoClaims,
-  demoUser,
   getClaims,
   getCurrentUser,
   getToken,
@@ -53,11 +50,6 @@ export default function Dashboard() {
         setClaims(currentClaims);
       })
       .catch((requestError: unknown) => {
-        if (DEMO_MODE) {
-          setUser(demoUser);
-          setClaims(demoClaims);
-          return;
-        }
         clearToken();
         setError(
           requestError instanceof Error

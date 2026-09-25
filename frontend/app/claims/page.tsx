@@ -1,8 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { demoClaims, type Claim } from "../lib/api";
+import { useRouter } from "next/navigation";
+import { getClaims, getToken, type Claim } from "../lib/api";
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
@@ -14,14 +15,32 @@ const statusLabels: Record<string, string> = {
 const statusOptions = ["all", "received", "processing_by_vendor", "completed", "rejected"];
 
 export default function ClaimsPage() {
+    const router = useRouter();
+    const [claims, setClaims] = useState<Claim[]>([]);
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState("all");
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState("");
+
+    useEffect(() => {
+        if (!getToken()) {
+            router.replace("/login");
+            return;
+        }
+
+        getClaims()
+            .then(setClaims)
+            .catch((requestError: unknown) => {
+                setError(requestError instanceof Error ? requestError.message : "Data klaim tidak dapat dimuat.");
+            })
+            .finally(() => setIsLoading(false));
+    }, [router]);
 
     const filteredClaims = useMemo(() => {
         const normalizedQuery = query.toLowerCase().trim();
 
-        return demoClaims.filter((claim) => {
+        return claims.filter((claim) => {
             const matchesStatus = status === "all" || claim.status === status;
             const searchable = [claim.claim_code, claim.serial_number, claim.customer?.name, claim.product?.name]
                 .filter(Boolean)
@@ -29,10 +48,10 @@ export default function ClaimsPage() {
                 .toLowerCase();
             return matchesStatus && (!normalizedQuery || searchable.includes(normalizedQuery));
         });
-    }, [query, status]);
+    }, [claims, query, status]);
 
     const countByStatus = (claimStatus: string) =>
-        demoClaims.filter((claim) => claimStatus === "all" || claim.status === claimStatus).length;
+        claims.filter((claim) => claimStatus === "all" || claim.status === claimStatus).length;
 
     return (
         <main className="claims-page">
@@ -49,8 +68,9 @@ export default function ClaimsPage() {
             </header>
 
             <section className="claims-page-content">
+                {error && <p className="form-error" role="alert">{error}</p>}
                 <div className="claim-overview">
-                    <div><span>Total klaim</span><strong>{demoClaims.length}</strong></div>
+                    <div><span>Total klaim</span><strong>{claims.length}</strong></div>
                     <div><span>Menunggu tindakan</span><strong>{countByStatus("received")}</strong></div>
                     <div><span>Diproses vendor</span><strong>{countByStatus("processing_by_vendor")}</strong></div>
                     <div><span>Selesai</span><strong>{countByStatus("completed")}</strong></div>
@@ -71,7 +91,7 @@ export default function ClaimsPage() {
                     </div>
 
                     <div className="claims-table-wrap">
-                        <table className="claims-table claims-page-table">
+                        {isLoading ? <div className="empty-state"><strong>Memuat data klaim...</strong></div> : <table className="claims-table claims-page-table">
                             <thead><tr><th>Klaim</th><th>Pelanggan</th><th>Produk / serial</th><th>Tanggal</th><th>Status</th><th /></tr></thead>
                             <tbody>{filteredClaims.map((claim: Claim) => (
                                 <tr key={claim.id}>
@@ -83,8 +103,8 @@ export default function ClaimsPage() {
                                     <td><button className="table-action" type="button">Detail →</button></td>
                                 </tr>
                             ))}</tbody>
-                        </table>
-                        {filteredClaims.length === 0 && <div className="empty-state"><strong>Klaim tidak ditemukan</strong><span>Coba ubah kata kunci atau filter status.</span></div>}
+                        </table>}
+                        {!isLoading && filteredClaims.length === 0 && <div className="empty-state"><strong>Klaim tidak ditemukan</strong><span>Coba ubah kata kunci atau filter status.</span></div>}
                     </div>
                 </section>
             </section>
@@ -94,7 +114,7 @@ export default function ClaimsPage() {
                     <button className="modal-close" type="button" onClick={() => setIsFormOpen(false)} aria-label="Tutup">×</button>
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
-                    <p className="modal-description">Form ini masih menggunakan data demo untuk kebutuhan presentasi.</p>
+                    <p className="modal-description">Lengkapi detail klaim untuk diproses oleh tim.</p>
                     <label>Nomor serial<input placeholder="Contoh: GT-AX91-001" /></label>
                     <label>Deskripsi kerusakan<textarea placeholder="Jelaskan keluhan pelanggan..." rows={4} /></label>
                     <div className="modal-actions"><button className="secondary-action" type="button" onClick={() => setIsFormOpen(false)}>Batal</button><button className="primary-action" type="button" onClick={() => setIsFormOpen(false)}>Simpan klaim</button></div>
