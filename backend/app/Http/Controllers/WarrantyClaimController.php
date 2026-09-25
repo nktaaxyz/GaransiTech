@@ -120,10 +120,27 @@ class WarrantyClaimController extends Controller
         $validated = $request->validate([
             'status' => ['required', 'string', Rule::in(self::STATUSES)],
             'note' => ['required', 'string'],
-            'forwarded_date' => ['nullable', 'date'],
-            'vendor_reference_number' => ['nullable', 'string', 'max:255'],
-            'resolution_date' => ['nullable', 'date'],
-            'resolution_note' => ['nullable', 'string'],
+            'forwarded_date' => [
+                Rule::requiredIf($request->input('status') === 'forwarded_to_vendor'),
+                'nullable',
+                'date',
+            ],
+            'vendor_reference_number' => [
+                Rule::requiredIf($request->input('status') === 'forwarded_to_vendor'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
+            'resolution_date' => [
+                Rule::requiredIf($request->input('status') === 'completed'),
+                'nullable',
+                'date',
+            ],
+            'resolution_note' => [
+                Rule::requiredIf($request->input('status') === 'completed'),
+                'nullable',
+                'string',
+            ],
         ]);
 
         $this->ensureValidTransition($claim->status, $validated['status']);

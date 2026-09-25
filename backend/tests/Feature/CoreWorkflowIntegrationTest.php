@@ -54,6 +54,8 @@ class CoreWorkflowIntegrationTest extends TestCase
         $this->patchJson("/api/claims/{$claim['id']}/status", [
             'status' => 'forwarded_to_vendor',
             'note' => 'Diteruskan ke vendor.',
+            'forwarded_date' => '2026-09-23',
+            'vendor_reference_number' => 'VENDOR-INTEGRATION-001',
         ])->assertOk();
 
         $this->patchJson("/api/claims/{$claim['id']}/status", [

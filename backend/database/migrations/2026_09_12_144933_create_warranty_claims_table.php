@@ -19,7 +19,7 @@ return new class extends Migration
             $table->foreignId('vendor_id')->constrained()->cascadeOnDelete();
             $table->string('serial_number')->nullable();
             $table->date('claim_date');
-            $table->enum('status',['received','forwaded_to_vendor','processing_by_vendor','completed','rejected'])-> default('received');
+            $table->enum('status',['received','forwarded_to_vendor','processing_by_vendor','completed','rejected'])->default('received');
             $table->date('forwarded_date')->nullable();
             $table->string('vendor_reference_number')->nullable();
             $table->date('resolution_date')->nullable();

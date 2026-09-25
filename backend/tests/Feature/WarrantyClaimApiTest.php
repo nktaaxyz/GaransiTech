@@ -95,17 +95,65 @@ class WarrantyClaimApiTest extends TestCase
         $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
             'status' => 'forwarded_to_vendor',
             'note' => 'Diteruskan ke vendor.',
+            'forwarded_date' => '2026-09-23',
+            'vendor_reference_number' => 'VENDOR-001',
         ])->assertOk()->assertJsonPath('status', 'forwarded_to_vendor');
 
         $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
             'status' => 'completed',
             'note' => 'Langsung selesai.',
+            'resolution_date' => '2026-09-23',
+            'resolution_note' => 'Perbaikan selesai.',
         ])->assertUnprocessable()->assertJsonValidationErrors(['status']);
 
         $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
             'status' => 'processing_by_vendor',
             'note' => 'Vendor mulai memproses.',
         ])->assertOk();
+    }
+
+    public function test_forwarding_requires_vendor_tracking_data(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Tidak menyala.',
+        ])->json();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Diteruskan ke vendor.',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['forwarded_date', 'vendor_reference_number']);
+    }
+
+    public function test_completion_requires_resolution_data(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Tidak menyala.',
+        ])->json();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Diteruskan ke vendor.',
+            'forwarded_date' => '2026-09-23',
+            'vendor_reference_number' => 'VENDOR-002',
+        ])->assertOk();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+            'status' => 'processing_by_vendor',
+            'note' => 'Sedang diproses vendor.',
+        ])->assertOk();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+            'status' => 'completed',
+            'note' => 'Perbaikan selesai.',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['resolution_date', 'resolution_note']);
     }
 
     public function test_claim_list_supports_status_and_search_filters(): void
