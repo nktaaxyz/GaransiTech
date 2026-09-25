@@ -82,9 +82,13 @@ export default function Dashboard() {
         <div className="dashboard-brand"><span>G</span> GaransiTech</div>
         <nav className="dashboard-nav" aria-label="Navigasi utama">
           <Link className="nav-item active" href="/"><span>01</span> Ringkasan</Link>
-          <Link className="nav-item" href="/warranties"><span>02</span> Garansi</Link>
-          <Link className="nav-item" href="/claims"><span>03</span> Klaim garansi</Link>
-          <Link className="nav-item" href="/#activity"><span>04</span> Aktivitas</Link>
+          <Link className="nav-item" href="/customers"><span>02</span> Pelanggan</Link>
+          <Link className="nav-item" href="/vendors"><span>03</span> Vendor</Link>
+          <Link className="nav-item" href="/products"><span>04</span> Produk</Link>
+          <Link className="nav-item" href="/product-units"><span>05</span> Unit produk</Link>
+          <Link className="nav-item" href="/warranties"><span>06</span> Garansi</Link>
+          <Link className="nav-item" href="/claims"><span>07</span> Klaim garansi</Link>
+          <Link className="nav-item" href="/#activity"><span>08</span> Aktivitas</Link>
         </nav>
         <div className="sidebar-footer">
           <div className="account-avatar">{user?.name?.charAt(0).toUpperCase()}</div>

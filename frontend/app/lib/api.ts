@@ -25,6 +25,31 @@ export type ProductUnit = {
   customer?: { name: string };
 };
 
+export type Product = {
+  id: number;
+  name: string;
+  category: string | null;
+  vendor?: Vendor;
+  units_count?: number;
+};
+
+export type Vendor = {
+  id: number;
+  name: string;
+  contact_person: string | null;
+  phone: string | null;
+  email: string | null;
+  products_count?: number;
+};
+
+export type Customer = {
+  id: number;
+  name: string;
+  phone: string;
+  address: string | null;
+  product_units_count?: number;
+};
+
 export type Warranty = {
   id: number;
   warranty_code: string;
@@ -100,6 +125,52 @@ export async function getProductUnits(): Promise<ProductUnit[]> {
   return response.data;
 }
 
+export async function getProducts(): Promise<Product[]> {
+  const response = await request<Paginated<Product>>("/products");
+  return response.data;
+}
+
+export async function getVendors(): Promise<Vendor[]> {
+  const response = await request<Paginated<Vendor>>("/vendors");
+  return response.data;
+}
+
+export function createProduct(input: { name: string; category?: string; vendor_id: number }): Promise<Product> {
+  return request<Product>("/products", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function createVendor(input: { name: string; contact_person?: string; phone?: string; email?: string }): Promise<Vendor> {
+  return request<Vendor>("/vendors", { method: "POST", body: JSON.stringify(input) });
+}
+
+export async function getCustomers(): Promise<Customer[]> {
+  const response = await request<Paginated<Customer>>("/customers");
+  return response.data;
+}
+
+export function createCustomer(input: {
+  name: string;
+  phone: string;
+  address?: string;
+}): Promise<Customer> {
+  return request<Customer>("/customers", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createProductUnit(input: {
+  product_id: number;
+  customer_id: number;
+  serial_number: string;
+  purchase_date?: string;
+}): Promise<ProductUnit> {
+  return request<ProductUnit>("/product-units", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
 export function createWarranty(input: {
   product_unit_id: number;
   start_date: string;
@@ -107,6 +178,18 @@ export function createWarranty(input: {
   notes?: string;
 }): Promise<Warranty> {
   return request<Warranty>("/warranties", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function createClaim(input: {
+  warranty_id: number;
+  claim_date: string;
+  damage_description: string;
+  note?: string;
+}): Promise<Claim> {
+  return request<Claim>("/claims", {
     method: "POST",
     body: JSON.stringify(input),
   });

@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getClaims, getToken, type Claim } from "../lib/api";
+import { createClaim, getClaims, getToken, getWarranties, type Claim, type Warranty } from "../lib/api";
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
@@ -17,11 +17,14 @@ const statusOptions = ["all", "received", "processing_by_vendor", "completed", "
 export default function ClaimsPage() {
     const router = useRouter();
     const [claims, setClaims] = useState<Claim[]>([]);
+    const [warranties, setWarranties] = useState<Warranty[]>([]);
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState("all");
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
+    const [formError, setFormError] = useState("");
+    const [isSaving, setIsSaving] = useState(false);
 
     useEffect(() => {
         if (!getToken()) {
@@ -29,13 +32,39 @@ export default function ClaimsPage() {
             return;
         }
 
-        getClaims()
-            .then(setClaims)
+        Promise.all([getClaims(), getWarranties("", "active")])
+            .then(([loadedClaims, loadedWarranties]) => {
+                setClaims(loadedClaims);
+                setWarranties(loadedWarranties);
+            })
             .catch((requestError: unknown) => {
                 setError(requestError instanceof Error ? requestError.message : "Data klaim tidak dapat dimuat.");
             })
             .finally(() => setIsLoading(false));
     }, [router]);
+
+    async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        setIsSaving(true);
+        setFormError("");
+        const formData = new FormData(event.currentTarget);
+
+        try {
+            await createClaim({
+                warranty_id: Number(formData.get("warranty_id")),
+                claim_date: String(formData.get("claim_date")),
+                damage_description: String(formData.get("damage_description")),
+                note: String(formData.get("note") || ""),
+            });
+            setClaims(await getClaims());
+            setIsFormOpen(false);
+            event.currentTarget.reset();
+        } catch (requestError) {
+            setFormError(requestError instanceof Error ? requestError.message : "Klaim tidak dapat disimpan.");
+        } finally {
+            setIsSaving(false);
+        }
+    }
 
     const filteredClaims = useMemo(() => {
         const normalizedQuery = query.toLowerCase().trim();
@@ -115,9 +144,14 @@ export default function ClaimsPage() {
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
                     <p className="modal-description">Lengkapi detail klaim untuk diproses oleh tim.</p>
-                    <label>Nomor serial<input placeholder="Contoh: GT-AX91-001" /></label>
-                    <label>Deskripsi kerusakan<textarea placeholder="Jelaskan keluhan pelanggan..." rows={4} /></label>
-                    <div className="modal-actions"><button className="secondary-action" type="button" onClick={() => setIsFormOpen(false)}>Batal</button><button className="primary-action" type="button" onClick={() => setIsFormOpen(false)}>Simpan klaim</button></div>
+                    {formError && <p className="form-error" role="alert">{formError}</p>}
+                    <form onSubmit={handleSubmit}>
+                        <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi aktif</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}</option>)}</select></label>
+                        <label>Tanggal klaim<input name="claim_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
+                        <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan keluhan pelanggan..." rows={4} required /></label>
+                        <label>Catatan awal<textarea name="note" placeholder="Catatan tambahan (opsional)" rows={3} /></label>
+                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={() => setIsFormOpen(false)}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
+                    </form>
                 </section>
             </div>}
         </main>
