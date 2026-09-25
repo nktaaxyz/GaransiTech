@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   ApiUser,
   Claim,
@@ -23,6 +23,7 @@ const statusLabels: Record<string, string> = {
 
 export default function Dashboard() {
   const router = useRouter();
+  const pathname = usePathname();
   const [user, setUser] = useState<ApiUser | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
   const [error, setError] = useState("");
@@ -81,13 +82,13 @@ export default function Dashboard() {
       <aside className="dashboard-sidebar">
         <div className="dashboard-brand"><span>G</span> GaransiTech</div>
         <nav className="dashboard-nav" aria-label="Navigasi utama">
-          <Link className="nav-item active" href="/"><span>01</span> Ringkasan</Link>
-          <Link className="nav-item" href="/customers"><span>02</span> Pelanggan</Link>
-          <Link className="nav-item" href="/vendors"><span>03</span> Vendor</Link>
-          <Link className="nav-item" href="/products"><span>04</span> Produk</Link>
-          <Link className="nav-item" href="/product-units"><span>05</span> Unit produk</Link>
-          <Link className="nav-item" href="/warranties"><span>06</span> Garansi</Link>
-          <Link className="nav-item" href="/claims"><span>07</span> Klaim garansi</Link>
+          <Link className={`nav-item ${pathname === "/" ? "active" : ""}`} href="/"><span>01</span> Ringkasan</Link>
+          <Link className={`nav-item ${pathname === "/customers" ? "active" : ""}`} href="/customers"><span>02</span> Pelanggan</Link>
+          <Link className={`nav-item ${pathname === "/vendors" ? "active" : ""}`} href="/vendors"><span>03</span> Vendor</Link>
+          <Link className={`nav-item ${pathname === "/products" ? "active" : ""}`} href="/products"><span>04</span> Produk</Link>
+          <Link className={`nav-item ${pathname === "/product-units" ? "active" : ""}`} href="/product-units"><span>05</span> Unit produk</Link>
+          <Link className={`nav-item ${pathname === "/warranties" ? "active" : ""}`} href="/warranties"><span>06</span> Garansi</Link>
+          <Link className={`nav-item ${pathname === "/claims" ? "active" : ""}`} href="/claims"><span>07</span> Klaim garansi</Link>
           <Link className="nav-item" href="/#activity"><span>08</span> Aktivitas</Link>
         </nav>
         <button className="sidebar-logout" type="button" onClick={handleLogout}><span aria-hidden="true">↪</span> Keluar</button>

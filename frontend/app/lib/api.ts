@@ -12,10 +12,25 @@ export type Claim = {
   claim_code: string;
   serial_number: string | null;
   claim_date: string;
+  damage_description?: string;
+  note?: string | null;
+  forwarded_date?: string | null;
+  vendor_reference_number?: string | null;
+  resolution_date?: string | null;
+  resolution_note?: string | null;
+  status_logs?: ClaimStatusLog[];
   status: string;
   customer?: { name: string };
   product?: { name: string };
   vendor?: { name: string };
+};
+
+export type ClaimStatusLog = {
+  id: number;
+  old_status: string | null;
+  new_status: string;
+  note: string;
+  created_at?: string;
 };
 
 export type ProductUnit = {
@@ -93,6 +108,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   } & T;
 
   if (!response.ok) {
+    if (response.status === 401) clearToken();
     const validationMessage = data.errors
       ? Object.values(data.errors).flat()[0]
       : undefined;
@@ -139,8 +155,24 @@ export function createProduct(input: { name: string; category?: string; vendor_i
   return request<Product>("/products", { method: "POST", body: JSON.stringify(input) });
 }
 
+export function updateProduct(id: number, input: { name: string; category?: string; vendor_id: number }): Promise<Product> {
+  return request<Product>(`/products/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function deleteProduct(id: number): Promise<{ message: string }> {
+  return request<{ message: string }>(`/products/${id}`, { method: "DELETE" });
+}
+
 export function createVendor(input: { name: string; contact_person?: string; phone?: string; email?: string }): Promise<Vendor> {
   return request<Vendor>("/vendors", { method: "POST", body: JSON.stringify(input) });
+}
+
+export function updateVendor(id: number, input: { name: string; contact_person?: string; phone?: string; email?: string }): Promise<Vendor> {
+  return request<Vendor>(`/vendors/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function deleteVendor(id: number): Promise<{ message: string }> {
+  return request<{ message: string }>(`/vendors/${id}`, { method: "DELETE" });
 }
 
 export async function getCustomers(): Promise<Customer[]> {
@@ -159,6 +191,14 @@ export function createCustomer(input: {
   });
 }
 
+export function updateCustomer(id: number, input: { name: string; phone: string; address?: string }): Promise<Customer> {
+  return request<Customer>(`/customers/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function deleteCustomer(id: number): Promise<{ message: string }> {
+  return request<{ message: string }>(`/customers/${id}`, { method: "DELETE" });
+}
+
 export function createProductUnit(input: {
   product_id: number;
   customer_id: number;
@@ -169,6 +209,19 @@ export function createProductUnit(input: {
     method: "POST",
     body: JSON.stringify(input),
   });
+}
+
+export function updateProductUnit(id: number, input: {
+  product_id: number;
+  customer_id: number;
+  serial_number: string;
+  purchase_date?: string;
+}): Promise<ProductUnit> {
+  return request<ProductUnit>(`/product-units/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function deleteProductUnit(id: number): Promise<{ message: string }> {
+  return request<{ message: string }>(`/product-units/${id}`, { method: "DELETE" });
 }
 
 export function createWarranty(input: {
@@ -183,6 +236,19 @@ export function createWarranty(input: {
   });
 }
 
+export function updateWarranty(id: number, input: {
+  product_unit_id: number;
+  start_date: string;
+  end_date: string;
+  notes?: string;
+}): Promise<Warranty> {
+  return request<Warranty>(`/warranties/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function deleteWarranty(id: number): Promise<{ message: string }> {
+  return request<{ message: string }>(`/warranties/${id}`, { method: "DELETE" });
+}
+
 export function createClaim(input: {
   warranty_id: number;
   claim_date: string;
@@ -192,6 +258,26 @@ export function createClaim(input: {
   return request<Claim>("/claims", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export function updateClaim(id: number, input: { damage_description: string; claim_date: string }): Promise<Claim> {
+  return request<Claim>(`/claims/${id}`, { method: "PATCH", body: JSON.stringify(input) });
+}
+
+export function updateClaimStatus(input: {
+  claimId: number;
+  status: string;
+  note: string;
+  forwarded_date?: string;
+  vendor_reference_number?: string;
+  resolution_date?: string;
+  resolution_note?: string;
+}): Promise<Claim> {
+  const { claimId, ...body } = input;
+  return request<Claim>(`/claims/${claimId}/status`, {
+    method: "PATCH",
+    body: JSON.stringify(body),
   });
 }
 

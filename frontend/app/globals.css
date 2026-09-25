@@ -1080,6 +1080,68 @@ body {
   color: #17233b;
   font-size: 24px;
 }
+.claim-detail-modal > .status-badge {
+  margin-top: 12px;
+}
+.claim-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-top: 25px;
+  padding: 17px 0;
+  border-top: 1px solid #edf0f5;
+  border-bottom: 1px solid #edf0f5;
+}
+.claim-detail-grid small,
+.claim-detail-note small {
+  display: block;
+  color: #8a96a7;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.claim-detail-grid strong {
+  display: block;
+  margin-top: 5px;
+  color: #30415b;
+  font-size: 12px;
+}
+.claim-detail-note {
+  margin-top: 18px;
+}
+.claim-detail-note p {
+  margin: 6px 0 0;
+  color: #5e6d82;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.status-update-form {
+  display: grid;
+  gap: 12px;
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 1px solid #edf0f5;
+}
+.status-update-form .dashboard-kicker {
+  margin-bottom: 0;
+}
+.status-update-form label {
+  display: grid;
+  gap: 7px;
+  color: #3c4b63;
+  font-size: 12px;
+  font-weight: 700;
+}
+.status-update-form select,
+.status-update-form textarea {
+  width: 100%;
+  padding: 10px 11px;
+  border: 1px solid #dbe2eb;
+  border-radius: 7px;
+  color: #30415b;
+  font: inherit;
+  resize: vertical;
+}
 .modal-description {
   margin: 8px 0 24px;
   color: #7a879a;

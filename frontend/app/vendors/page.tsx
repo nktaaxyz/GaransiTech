@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createVendor, getToken, getVendors, type Vendor } from "../lib/api";
+import { createVendor, getToken, getVendors, updateVendor, type Vendor } from "../lib/api";
 
 export default function VendorsPage() {
     const router = useRouter();
@@ -14,17 +14,26 @@ export default function VendorsPage() {
     const [error, setError] = useState("");
     const [formError, setFormError] = useState("");
 
+    const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
+
+    async function refresh() {
+        setVendors(await getVendors());
+    }
+
     useEffect(() => {
         if (!getToken()) { router.replace("/login"); return; }
-        getVendors().then(setVendors).catch((error: unknown) => setError(error instanceof Error ? error.message : "Data vendor tidak dapat dimuat.")).finally(() => setIsLoading(false));
+        getVendors().then(setVendors).catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : "Data vendor tidak dapat dimuat.")).finally(() => setIsLoading(false));
     }, [router]);
 
     async function handleSubmit(event: FormEvent<HTMLFormElement>) {
         event.preventDefault(); setIsSaving(true); setFormError("");
         const data = new FormData(event.currentTarget);
         try {
-            await createVendor({ name: String(data.get("name")), contact_person: String(data.get("contact_person") || ""), phone: String(data.get("phone") || ""), email: String(data.get("email") || "") });
-            setVendors(await getVendors()); setIsFormOpen(false); event.currentTarget.reset();
+            const input = { name: String(data.get("name")), contact_person: String(data.get("contact_person") || ""), phone: String(data.get("phone") || ""), email: String(data.get("email") || "") };
+            if (editingVendor) await updateVendor(editingVendor.id, input); else await createVendor(input);
+            await refresh();
+            setIsFormOpen(false);
+            setEditingVendor(null);
         } catch (error) { setFormError(error instanceof Error ? error.message : "Vendor tidak dapat disimpan."); } finally { setIsSaving(false); }
     }
 

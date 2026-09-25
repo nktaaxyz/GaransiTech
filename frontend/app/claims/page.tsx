@@ -3,13 +3,20 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClaim, getClaims, getToken, getWarranties, type Claim, type Warranty } from "../lib/api";
+import { createClaim, getClaims, getToken, getWarranties, updateClaimStatus, type Claim, type Warranty } from "../lib/api";
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
+    forwarded_to_vendor: "Diteruskan ke vendor",
     processing_by_vendor: "Diproses vendor",
     completed: "Selesai",
     rejected: "Ditolak",
+};
+
+const nextStatusOptions: Record<string, string[]> = {
+    received: ["forwarded_to_vendor", "rejected"],
+    forwarded_to_vendor: ["processing_by_vendor", "rejected"],
+    processing_by_vendor: ["completed", "rejected"],
 };
 
 const statusOptions = ["all", "received", "processing_by_vendor", "completed", "rejected"];
@@ -21,6 +28,9 @@ export default function ClaimsPage() {
     const [query, setQuery] = useState("");
     const [status, setStatus] = useState("all");
     const [isFormOpen, setIsFormOpen] = useState(false);
+    const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+    const [isStatusSaving, setIsStatusSaving] = useState(false);
+    const [statusError, setStatusError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState("");
     const [formError, setFormError] = useState("");
@@ -63,6 +73,29 @@ export default function ClaimsPage() {
             setFormError(requestError instanceof Error ? requestError.message : "Klaim tidak dapat disimpan.");
         } finally {
             setIsSaving(false);
+        }
+    }
+
+    async function handleStatusSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!selectedClaim) return;
+        setIsStatusSaving(true);
+        setStatusError("");
+        const formData = new FormData(event.currentTarget);
+
+        try {
+            const updatedClaim = await updateClaimStatus({
+                claimId: selectedClaim.id,
+                status: String(formData.get("status")),
+                note: String(formData.get("status_note")),
+            });
+            setClaims((currentClaims) => currentClaims.map((claim) => claim.id === updatedClaim.id ? updatedClaim : claim));
+            setSelectedClaim(updatedClaim);
+            event.currentTarget.reset();
+        } catch (requestError) {
+            setStatusError(requestError instanceof Error ? requestError.message : "Status klaim tidak dapat diperbarui.");
+        } finally {
+            setIsStatusSaving(false);
         }
     }
 
@@ -129,7 +162,7 @@ export default function ClaimsPage() {
                                     <td><strong>{claim.product?.name || "-"}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td>
                                     <td>{new Date(claim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
                                     <td><span className={`status-badge status-${claim.status}`}>{statusLabels[claim.status] || claim.status}</span></td>
-                                    <td><button className="table-action" type="button">Detail →</button></td>
+                                    <td><button className="table-action" type="button" onClick={() => setSelectedClaim(claim)}>Detail →</button></td>
                                 </tr>
                             ))}</tbody>
                         </table>}
@@ -152,6 +185,29 @@ export default function ClaimsPage() {
                         <label>Catatan awal<textarea name="note" placeholder="Catatan tambahan (opsional)" rows={3} /></label>
                         <div className="modal-actions"><button className="secondary-action" type="button" onClick={() => setIsFormOpen(false)}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
                     </form>
+                </section>
+            </div>}
+            {selectedClaim && <div className="modal-backdrop" role="presentation" onClick={() => setSelectedClaim(null)}>
+                <section className="claim-modal claim-detail-modal" role="dialog" aria-modal="true" aria-labelledby="claim-detail-title" onClick={(event) => event.stopPropagation()}>
+                    <button className="modal-close" type="button" onClick={() => setSelectedClaim(null)} aria-label="Tutup">×</button>
+                    <p className="dashboard-kicker">DETAIL KLAIM</p>
+                    <h2 id="claim-detail-title">{selectedClaim.claim_code}</h2>
+                    <span className={`status-badge status-${selectedClaim.status}`}>{statusLabels[selectedClaim.status] || selectedClaim.status}</span>
+                    <div className="claim-detail-grid">
+                        <div><small>Pelanggan</small><strong>{selectedClaim.customer?.name || "-"}</strong></div>
+                        <div><small>Produk</small><strong>{selectedClaim.product?.name || "-"}</strong></div>
+                        <div><small>Nomor serial</small><strong>{selectedClaim.serial_number || "-"}</strong></div>
+                        <div><small>Tanggal klaim</small><strong>{new Date(selectedClaim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong></div>
+                    </div>
+                    <div className="claim-detail-note"><small>Deskripsi kerusakan</small><p>{selectedClaim.damage_description || "Belum ada deskripsi kerusakan."}</p></div>
+                    {selectedClaim.note && <div className="claim-detail-note"><small>Catatan</small><p>{selectedClaim.note}</p></div>}
+                    {nextStatusOptions[selectedClaim.status] && <form className="status-update-form" onSubmit={handleStatusSubmit}>
+                        <p className="dashboard-kicker">PERBARUI STATUS</p>
+                        {statusError && <p className="form-error" role="alert">{statusError}</p>}
+                        <label>Status berikutnya<select name="status" required defaultValue=""><option value="" disabled>Pilih status</option>{nextStatusOptions[selectedClaim.status].map((option) => <option key={option} value={option}>{statusLabels[option]}</option>)}</select></label>
+                        <label>Catatan penanganan<textarea name="status_note" rows={3} required placeholder="Tuliskan tindakan atau hasil penanganan..." /></label>
+                        <button className="primary-action" type="submit" disabled={isStatusSaving}>{isStatusSaving ? "Menyimpan..." : "Simpan status"}</button>
+                    </form>}
                 </section>
             </div>}
         </main>
