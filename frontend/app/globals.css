@@ -502,11 +502,15 @@ body {
 
 .dashboard-page {
   display: flex;
+  height: 100vh;
+  overflow: hidden;
   background: #f4f6f9;
 }
 .dashboard-sidebar {
   width: 238px;
-  min-height: 100vh;
+  height: 100vh;
+  min-height: 0;
+  flex: 0 0 238px;
   padding: 28px 18px 22px;
   display: flex;
   flex-direction: column;
@@ -541,54 +545,74 @@ body {
   background: #ffffff0d;
   color: #fff;
 }
-.sidebar-footer {
+.topbar-account {
+  position: absolute;
+  top: 10px;
+  right: 18px;
   display: flex;
   align-items: center;
   gap: 9px;
-  margin-top: auto;
-  padding: 15px 5px 0;
-  border-top: 1px solid #ffffff1a;
+  padding: 3px 0;
 }
 .account-avatar {
   display: grid;
   place-items: center;
-  flex: 0 0 31px;
-  height: 31px;
+  flex: 0 0 34px;
+  height: 34px;
   border-radius: 50%;
   background: #4383ed;
   font-size: 12px;
   font-weight: 800;
 }
-.sidebar-footer strong,
-.sidebar-footer small {
+.topbar-account strong,
+.topbar-account small {
   display: block;
   max-width: 125px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.sidebar-footer strong {
-  font-size: 11px;
+.topbar-account strong {
+  color: #30415b;
+  font-size: 12px;
 }
-.sidebar-footer small {
+.topbar-account small {
   margin-top: 3px;
-  color: #9eafd0;
-  font-size: 9px;
+  color: #8490a2;
+  font-size: 10px;
 }
-.sidebar-footer button {
-  margin-left: auto;
-  padding: 0;
+.sidebar-logout {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 9px;
+  margin-top: auto;
+  padding: 14px 12px 2px;
   border: 0;
+  border-top: 1px solid #ffffff1a;
   background: transparent;
   color: #89a4ce;
   cursor: pointer;
-  font-size: 10px;
+  font-size: 11px;
+  text-align: left;
+  transition: 0.15s ease;
+}
+.sidebar-logout:hover {
+  color: #fff;
+}
+.sidebar-logout span {
+  color: #67a1ff;
+  font-size: 16px;
+  line-height: 1;
 }
 .dashboard-main {
   min-width: 0;
   flex: 1;
+  height: 100vh;
+  overflow-y: auto;
 }
 .dashboard-topbar {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: end;
@@ -634,6 +658,19 @@ body {
 .dashboard-main .dashboard-content {
   width: min(100% - 56px, 1120px);
   padding: 29px 0 52px;
+}
+.dashboard-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px clamp(28px, 5vw, 70px);
+  border-top: 1px solid #e1e6ee;
+  color: #8a96a7;
+  font-size: 10px;
+}
+.dashboard-footer strong {
+  color: #53647d;
+  font-weight: 800;
 }
 .stats-grid {
   display: grid;
@@ -1093,10 +1130,14 @@ body {
 @media (max-width: 600px) {
   .dashboard-page {
     display: block;
+    height: auto;
+    overflow: visible;
   }
   .dashboard-sidebar {
     width: 100%;
+    height: auto;
     min-height: auto;
+    flex-basis: auto;
     padding: 17px 16px;
   }
   .dashboard-nav {
@@ -1110,12 +1151,19 @@ body {
     border-left: 0;
     border-bottom: 2px solid transparent;
   }
-  .sidebar-footer {
-    padding-top: 12px;
-  }
   .dashboard-topbar {
     display: block;
     padding: 28px 14px 23px;
+  }
+  .dashboard-main {
+    height: auto;
+    overflow: visible;
+  }
+  .topbar-account {
+    position: static;
+    width: fit-content;
+    margin-left: auto;
+    min-width: 0;
   }
   .topbar-actions {
     align-items: flex-start;
@@ -1124,6 +1172,12 @@ body {
   }
   .topbar-date {
     margin-top: 10px;
+  }
+  .dashboard-footer {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 6px;
+    padding: 16px 14px 22px;
   }
   .dashboard-main .dashboard-content {
     width: min(100% - 28px, 1120px);

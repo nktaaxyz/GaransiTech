@@ -90,11 +90,7 @@ export default function Dashboard() {
           <Link className="nav-item" href="/claims"><span>07</span> Klaim garansi</Link>
           <Link className="nav-item" href="/#activity"><span>08</span> Aktivitas</Link>
         </nav>
-        <div className="sidebar-footer">
-          <div className="account-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
-          <div><strong>{user?.name}</strong><small>{user?.email}</small></div>
-          <button type="button" onClick={handleLogout} aria-label="Keluar dari akun">Keluar</button>
-        </div>
+        <button className="sidebar-logout" type="button" onClick={handleLogout}><span aria-hidden="true">↪</span> Keluar</button>
       </aside>
 
       <section className="dashboard-main">
@@ -105,6 +101,10 @@ export default function Dashboard() {
             <p className="topbar-subtitle">Pantau garansi dan pastikan setiap klaim mendapat tindak lanjut.</p>
           </div>
           <div className="topbar-actions">
+            <div className="topbar-account">
+              <div className="account-avatar">{user?.name?.charAt(0).toUpperCase()}</div>
+              <div><strong>{user?.name}</strong><small>{user?.email}</small></div>
+            </div>
             <div className="topbar-date">{new Intl.DateTimeFormat("id-ID", { dateStyle: "long" }).format(new Date())}</div>
             <Link className="primary-action" href="/claims">+ Catat klaim</Link>
           </div>
@@ -156,6 +156,10 @@ export default function Dashboard() {
             )}
           </section>
         </div>
+        <footer className="dashboard-footer">
+          <span><strong>GaransiTech</strong> &copy; {new Date().getFullYear()}</span>
+          <span>Manajemen garansi dan klaim</span>
+        </footer>
       </section>
     </main>
   );
