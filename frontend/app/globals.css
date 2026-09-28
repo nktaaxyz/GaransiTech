@@ -420,9 +420,21 @@ body {
   font-weight: 700;
   text-transform: uppercase;
 }
+.claims-table tbody tr {
+  transition: background 0.15s ease;
+}
+.claims-table tbody tr:hover {
+  background: #f8fbff;
+}
+.claims-table td {
+  vertical-align: middle;
+}
 .claims-table td strong,
 .claims-table td small {
   display: block;
+}
+.claims-table td strong {
+  color: #253554;
 }
 .claims-table td small {
   margin-top: 4px;
@@ -642,18 +654,26 @@ body {
 .primary-action {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   min-height: 36px;
   padding: 0 14px;
-  border-radius: 7px;
-  background: #2869dc;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #2e73e5 0%, #245fc5 100%);
   color: #fff;
   font-size: 11px;
   font-weight: 700;
   text-decoration: none;
-  box-shadow: 0 6px 14px #2869dc24;
+  box-shadow: 0 8px 18px rgba(40, 105, 220, 0.22);
+  transition:
+    transform 0.15s ease,
+    box-shadow 0.15s ease,
+    filter 0.15s ease;
 }
 .primary-action:hover {
-  background: #1f58bc;
+  filter: brightness(1.02);
+  transform: translateY(-1px);
+  box-shadow: 0 10px 20px rgba(40, 105, 220, 0.25);
 }
 .dashboard-main .dashboard-content {
   width: min(100% - 56px, 1120px);
@@ -1040,13 +1060,31 @@ body {
   padding: 16px 22px;
 }
 .table-action {
-  border: 0;
-  background: transparent;
-  color: #2869dc;
+  border: 1px solid #dfe9fb;
+  background: #edf4ff;
+  color: #2a68d9;
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
   white-space: nowrap;
+  padding: 6px 10px;
+  border-radius: 999px;
+  transition: all 0.15s ease;
+}
+.table-action:hover {
+  background: #dfeeff;
+  border-color: #cfe0ff;
+  transform: translateY(-1px);
+}
+.table-action-danger {
+  margin-left: 9px;
+  border-color: #f5d2d2;
+  background: #fff1f1;
+  color: #c63939;
+}
+.table-action-danger:hover {
+  background: #ffe5e5;
+  border-color: #f1b9b9;
 }
 .modal-backdrop {
   position: fixed;
@@ -1069,11 +1107,23 @@ body {
   position: absolute;
   top: 16px;
   right: 18px;
-  border: 0;
-  background: transparent;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 50%;
+  background: #f8fafc;
   color: #8793a5;
   cursor: pointer;
-  font-size: 24px;
+  font-size: 22px;
+  line-height: 1;
+  transition: all 0.15s ease;
+}
+.modal-close:hover {
+  background: #eef4ff;
+  color: #2d5fc9;
+  border-color: #d5e5ff;
 }
 .claim-modal h2 {
   margin: 0;
@@ -1156,12 +1206,28 @@ body {
   font-size: 12px;
   font-weight: 700;
 }
+.claim-modal form {
+  display: grid;
+}
 .claim-modal input,
 .claim-modal textarea {
   padding: 11px 12px;
   border: 1px solid #dbe2eb;
-  border-radius: 7px;
+  border-radius: 8px;
   resize: vertical;
+  background: #fff;
+  color: #243650;
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+.claim-modal input:focus,
+.claim-modal textarea:focus,
+.search-field input:focus,
+.claim-filters select:focus {
+  outline: none;
+  border-color: #8bb4ff;
+  box-shadow: 0 0 0 3px rgba(70, 130, 239, 0.12);
 }
 .modal-actions {
   display: flex;
@@ -1170,13 +1236,20 @@ body {
   margin-top: 25px;
 }
 .secondary-action {
+  min-height: 36px;
   padding: 0 14px;
   border: 1px solid #dbe2eb;
-  border-radius: 7px;
+  border-radius: 8px;
   background: #fff;
   color: #65748a;
   cursor: pointer;
   font-size: 12px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+.secondary-action:hover {
+  border-color: #c9d5e7;
+  background: #f8faff;
 }
 @media (max-width: 900px) {
   .dashboard-sidebar {

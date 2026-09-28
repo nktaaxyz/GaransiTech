@@ -13,7 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GaransiTeach",
+  title: "GaransiTech",
   description: "Sistem manajemen garansi produk dan klaim pelanggan",
 };
 

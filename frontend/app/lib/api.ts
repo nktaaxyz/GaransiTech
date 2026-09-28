@@ -36,15 +36,15 @@ export type ClaimStatusLog = {
 export type ProductUnit = {
   id: number;
   serial_number: string;
-  product?: { name: string };
-  customer?: { name: string };
+  product?: { id: number; name: string };
+  customer?: { id: number; name: string };
 };
 
 export type Product = {
   id: number;
   name: string;
   category: string | null;
-  vendor?: Vendor;
+  vendor?: Pick<Vendor, "id" | "name">;
   units_count?: number;
 };
 
