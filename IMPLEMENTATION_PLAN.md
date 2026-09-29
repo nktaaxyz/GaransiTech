@@ -9,9 +9,9 @@ Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis ya
 
 ## Progress Tracker
 
-- [x] Tahap 0 — Finalisasi aturan bisnis.
-- [x] Tahap 1 — Stabilitas autentikasi admin (backend).
-- [x] Tahap 2 — Penyelarasan database dan model.
+- [ ] Tahap 0 — Finalisasi aturan bisnis.
+- [ ] Tahap 1 — Stabilitas autentikasi admin (backend).
+- [ ] Tahap 2 — Penyelarasan database dan model.
 - [x] Tahap 3A — API Customer (backend).
 - [x] Tahap 3B — API Vendor (backend).
 - [x] Tahap 3C — API Product (backend).
@@ -89,44 +89,44 @@ Struktur fitur frontend:
 
 ## 4. Tahapan Implementasi
 
-## Tahap 0 — Finalisasi aturan bisnis ✅
+## Tahap 0 — Finalisasi aturan bisnis
 
 **Tujuan:** memastikan implementasi mengikuti kebutuhan mitra dan PRD.
 
 Pekerjaan:
 
-- Konfirmasi bahwa hanya Admin Toko yang login.
-- Konfirmasi bahwa transaksi penjualan umum tidak dicatat.
-- Tentukan ambang “akan berakhir”, misalnya 30 hari sebelum tanggal berakhir.
-- Tentukan apakah satu unit dapat memiliki lebih dari satu periode garansi.
-- Tentukan status klaim final dan aturan klaim berulang.
+- [x] Konfirmasi bahwa hanya Admin Toko yang login.
+- [x] Konfirmasi bahwa transaksi penjualan umum tidak dicatat.
+- [ ] Tentukan ambang “akan berakhir”, misalnya 30 hari sebelum tanggal berakhir.
+- [ ] Tentukan apakah satu unit dapat memiliki lebih dari satu periode garansi.
+- [x] Tentukan status klaim final dan aturan klaim berulang.
 
 Output:
 
 - Aturan bisnis final.
 - Daftar status dan transisi status yang disepakati.
 
-## Tahap 1 — Stabilitas autentikasi admin ✅ (backend)
+## Tahap 1 — Stabilitas autentikasi admin
 
 **Tujuan:** memastikan semua halaman data terlindungi.
 
 Backend:
 
-- Pertahankan endpoint login, logout, dan user.
-- Validasi email dan password.
-- Pastikan password selalu di-hash.
-- Lindungi endpoint data dengan middleware `auth:sanctum`.
-- Samakan format error validasi JSON.
-- Putuskan kebijakan register publik sesuai keputusan stakeholder.
+- [x] Pertahankan endpoint login, logout, dan user.
+- [x] Validasi email dan password.
+- [x] Pastikan password selalu di-hash.
+- [x] Lindungi endpoint data dengan middleware `auth:sanctum`.
+- [x] Samakan format error validasi JSON.
+- [ ] Putuskan kebijakan register publik sesuai keputusan stakeholder.
 
 Frontend:
 
-- Sediakan form login.
-- Simpan token dengan aman sesuai keputusan implementasi.
-- Redirect user tanpa token ke `/login`.
-- Hapus token jika API mengembalikan `401`.
-- Sediakan logout.
-- Buat helper API terpusat untuk header `Authorization`.
+- [x] Sediakan form login.
+- [ ] Simpan token dengan aman sesuai keputusan implementasi.
+- [x] Redirect user tanpa token ke `/login`.
+- [x] Hapus token jika API mengembalikan `401`.
+- [x] Sediakan logout.
+- [x] Buat helper API terpusat untuk header `Authorization`.
 
 Endpoint:
 
@@ -143,21 +143,21 @@ Kriteria selesai:
 - Endpoint terlindungi menolak request tanpa token.
 - Logout menonaktifkan token aktif.
 
-## Tahap 2 — Penyelarasan database dan model ✅
+## Tahap 2 — Penyelarasan database dan model
 
 **Tujuan:** membuat model data mendukung alur registrasi garansi tanpa mencatat semua transaksi.
 
 Pekerjaan:
 
-- Audit migration yang sudah ada.
-- Lengkapi `$fillable`, casts, dan relasi pada semua model.
-- Hubungkan `warranty_claims` ke `warranties` atau `product_units` sesuai keputusan skema final.
-- Tambahkan deskripsi kerusakan pada klaim bila dibutuhkan.
-- Samakan penamaan status `forwarded_to_vendor`.
-- Samakan nama kolom catatan penyelesaian.
-- Buat migration baru; jangan mengedit migration yang sudah berjalan pada lingkungan bersama.
-- Tambahkan foreign key dan index untuk kolom pencarian.
-- Tambahkan unique constraint untuk serial number, kode garansi, dan kode klaim.
+- [ ] Audit migration yang sudah ada.
+- [x] Lengkapi `$fillable`, casts, dan relasi pada semua model.
+- [x] Hubungkan `warranty_claims` ke `warranties` atau `product_units` sesuai keputusan skema final.
+- [x] Tambahkan deskripsi kerusakan pada klaim bila dibutuhkan.
+- [x] Samakan penamaan status `forwarded_to_vendor`.
+- [x] Samakan nama kolom catatan penyelesaian.
+- [x] Buat migration baru; jangan mengedit migration yang sudah berjalan pada lingkungan bersama.
+- [x] Tambahkan foreign key dan index untuk kolom pencarian.
+- [x] Tambahkan unique constraint untuk serial number, kode garansi, dan kode klaim.
 
 Relasi target:
 
@@ -176,7 +176,7 @@ Kriteria selesai:
 - Relasi dapat digunakan tanpa query manual.
 - Data referensi tidak dapat dihapus jika melanggar aturan bisnis.
 
-## Tahap 3 — API data master ✅
+## Tahap 3 — API data master
 
 **Tujuan:** menyediakan data yang dibutuhkan sebelum registrasi garansi dibuat.
 
@@ -272,7 +272,7 @@ Frontend:
 - Konfirmasi sebelum hapus.
 - Empty state, loading state, dan error state.
 
-## Tahap 4 — Registrasi dan pemantauan garansi 🟡
+## Tahap 4 — Registrasi dan pemantauan garansi
 
 **Tujuan:** mencatat hanya unit yang perlu digaransikan dan memantau masa berlakunya.
 
@@ -310,7 +310,7 @@ Kriteria selesai:
 - Status aktif/akan berakhir/berakhir sesuai tanggal.
 - Garansi tidak dapat dibuat untuk unit yang tidak valid.
 
-## Tahap 5 — Klaim dan riwayat penanganan 🟡
+## Tahap 5 — Klaim dan riwayat penanganan
 
 **Tujuan:** mendukung proses klaim dari pencatatan sampai selesai.
 
@@ -346,12 +346,12 @@ rejected
 
 Frontend:
 
-- Daftar klaim dengan filter status.
-- Form klaim berdasarkan kode garansi atau serial number.
-- Detail klaim.
-- Timeline riwayat status.
-- Form update status dan catatan.
-- Tampilan klaim yang sedang diproses.
+- [x] Daftar klaim dengan filter status.
+- [x] Form klaim berdasarkan kode garansi atau serial number.
+- [x] Detail klaim.
+- [ ] Timeline riwayat status.
+- [x] Form update status dan catatan.
+- [x] Tampilan klaim yang sedang diproses.
 
 Kriteria selesai:
 
@@ -359,7 +359,7 @@ Kriteria selesai:
 - Setiap perubahan status memiliki waktu, admin, dan catatan.
 - Status final tidak dapat diubah tanpa aturan yang disepakati.
 
-## Tahap 6 — Dashboard, pencarian, dan laporan 🟡
+## Tahap 6 — Dashboard, pencarian, dan laporan
 
 **Tujuan:** membantu admin memantau kondisi layanan garansi.
 
@@ -380,25 +380,25 @@ GET /api/reports/claims
 
 Frontend:
 
-- Kartu ringkasan garansi aktif, akan berakhir, dan berakhir.
-- Kartu klaim diterima, diproses, selesai, dan ditolak.
-- Daftar klaim yang masih diproses.
-- Filter periode laporan.
-- Pencarian dengan debounce dan pagination.
+- [ ] Kartu ringkasan garansi aktif, akan berakhir, dan berakhir.
+- [x] Kartu klaim diterima, diproses, selesai, dan ditolak.
+- [x] Daftar klaim yang masih diproses.
+- [ ] Filter periode laporan.
+- [ ] Pencarian dengan debounce dan pagination.
 
-## Tahap 7 — Klasifikasi AI sebagai rekomendasi ⏳
+## Tahap 7 — Klasifikasi AI sebagai rekomendasi
 
 **Tujuan:** membantu admin mengelompokkan keluhan tanpa mengambil keputusan otomatis.
 
 Pekerjaan:
 
-- Definisikan format input deskripsi kerusakan.
-- Definisikan output kategori: `hardware`, `software`, `network`.
-- Definisikan output urgensi.
-- Simpan hasil AI dan hasil koreksi admin secara terpisah.
-- Tampilkan indikator bahwa hasil AI adalah rekomendasi.
-- Tangani timeout, error, dan layanan AI tidak tersedia.
-- Pastikan klaim tetap dapat dibuat tanpa AI.
+- [ ] Definisikan format input deskripsi kerusakan.
+- [ ] Definisikan output kategori: `hardware`, `software`, `network`.
+- [ ] Definisikan output urgensi.
+- [ ] Simpan hasil AI dan hasil koreksi admin secara terpisah.
+- [ ] Tampilkan indikator bahwa hasil AI adalah rekomendasi.
+- [ ] Tangani timeout, error, dan layanan AI tidak tersedia.
+- [ ] Pastikan klaim tetap dapat dibuat tanpa AI.
 
 Kriteria selesai:
 
@@ -406,21 +406,21 @@ Kriteria selesai:
 - Admin dapat mengoreksi rekomendasi.
 - Kegagalan AI tidak memblokir workflow klaim.
 
-## Tahap 8 — Audit aktivitas dan keamanan 🟡
+## Tahap 8 — Audit aktivitas dan keamanan
 
 **Tujuan:** menyediakan penelusuran aktivitas admin dan memperkuat keamanan.
 
 Pekerjaan:
 
 - [x] Tambahkan `activity_logs`.
-- [x] Catat aktivitas create, update, delete, login, logout, dan perubahan status.
+- [ ] Catat aktivitas create, update, delete, login, logout, dan perubahan status.
 - [x] Tambahkan rate limiting untuk autentikasi.
 - [x] Pastikan data sensitif tidak masuk log aplikasi.
 - [x] Validasi authorization pada setiap endpoint.
 - [ ] Gunakan HTTPS pada lingkungan produksi.
 - [x] Review CORS dan environment variables sebelum deployment.
 
-## Tahap 9 — Pengujian dan rilis 🟡
+## Tahap 9 — Pengujian dan rilis
 
 ### Backend
 
@@ -435,11 +435,11 @@ Pekerjaan:
 
 ### Frontend
 
-- Lint dan TypeScript check.
-- Build production.
-- Uji form validasi.
-- Uji redirect token dan `401`.
-- Uji loading, empty, success, dan error state.
+- [ ] Lint dan TypeScript check.
+- [ ] Build production.
+- [ ] Uji form validasi.
+- [ ] Uji redirect token dan `401`.
+- [ ] Uji loading, empty, success, dan error state.
 
 ### End-to-end
 
