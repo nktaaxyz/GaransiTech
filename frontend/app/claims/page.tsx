@@ -19,7 +19,7 @@ const nextStatusOptions: Record<string, string[]> = {
     processing_by_vendor: ["completed", "rejected"],
 };
 
-const statusOptions = ["all", "received", "processing_by_vendor", "completed", "rejected"];
+const statusOptions = ["all", "received", "forwarded_to_vendor", "processing_by_vendor", "completed", "rejected"];
 
 export default function ClaimsPage() {
     const router = useRouter();
@@ -29,6 +29,7 @@ export default function ClaimsPage() {
     const [status, setStatus] = useState("all");
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
+    const [nextStatus, setNextStatus] = useState("");
     const [isStatusSaving, setIsStatusSaving] = useState(false);
     const [statusError, setStatusError] = useState("");
     const [isLoading, setIsLoading] = useState(true);
@@ -42,10 +43,10 @@ export default function ClaimsPage() {
             return;
         }
 
-        Promise.all([getClaims(), getWarranties("", "active")])
-            .then(([loadedClaims, loadedWarranties]) => {
+        Promise.all([getClaims(), getWarranties("", "active"), getWarranties("", "expiring")])
+            .then(([loadedClaims, activeWarranties, expiringWarranties]) => {
                 setClaims(loadedClaims);
-                setWarranties(loadedWarranties);
+                setWarranties([...activeWarranties, ...expiringWarranties]);
             })
             .catch((requestError: unknown) => {
                 setError(requestError instanceof Error ? requestError.message : "Data klaim tidak dapat dimuat.");
@@ -57,7 +58,8 @@ export default function ClaimsPage() {
         event.preventDefault();
         setIsSaving(true);
         setFormError("");
-        const formData = new FormData(event.currentTarget);
+        const form = event.currentTarget;
+        const formData = new FormData(form);
 
         try {
             await createClaim({
@@ -68,7 +70,7 @@ export default function ClaimsPage() {
             });
             setClaims(await getClaims());
             setIsFormOpen(false);
-            event.currentTarget.reset();
+            form.reset();
         } catch (requestError) {
             setFormError(requestError instanceof Error ? requestError.message : "Klaim tidak dapat disimpan.");
         } finally {
@@ -81,17 +83,28 @@ export default function ClaimsPage() {
         if (!selectedClaim) return;
         setIsStatusSaving(true);
         setStatusError("");
-        const formData = new FormData(event.currentTarget);
+        const form = event.currentTarget;
+        const formData = new FormData(form);
+        const nextStatusValue = String(formData.get("status"));
 
         try {
             const updatedClaim = await updateClaimStatus({
                 claimId: selectedClaim.id,
-                status: String(formData.get("status")),
+                status: nextStatusValue,
                 note: String(formData.get("status_note")),
+                ...(nextStatusValue === "forwarded_to_vendor" && {
+                    forwarded_date: String(formData.get("forwarded_date")),
+                    vendor_reference_number: String(formData.get("vendor_reference_number")),
+                }),
+                ...(nextStatusValue === "completed" && {
+                    resolution_date: String(formData.get("resolution_date")),
+                    resolution_note: String(formData.get("resolution_note")),
+                }),
             });
             setClaims((currentClaims) => currentClaims.map((claim) => claim.id === updatedClaim.id ? updatedClaim : claim));
             setSelectedClaim(updatedClaim);
-            event.currentTarget.reset();
+            setNextStatus("");
+            form.reset();
         } catch (requestError) {
             setStatusError(requestError instanceof Error ? requestError.message : "Status klaim tidak dapat diperbarui.");
         } finally {
@@ -162,7 +175,7 @@ export default function ClaimsPage() {
                                     <td><strong>{claim.product?.name || "-"}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td>
                                     <td>{new Date(claim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
                                     <td><span className={`status-badge status-${claim.status}`}>{statusLabels[claim.status] || claim.status}</span></td>
-                                    <td><button className="table-action" type="button" onClick={() => setSelectedClaim(claim)}>Detail →</button></td>
+                                    <td><button className="table-action" type="button" onClick={() => { setSelectedClaim(claim); setNextStatus(""); setStatusError(""); }}>Detail →</button></td>
                                 </tr>
                             ))}</tbody>
                         </table>}
@@ -176,10 +189,10 @@ export default function ClaimsPage() {
                     <button className="modal-close" type="button" onClick={() => setIsFormOpen(false)} aria-label="Tutup">×</button>
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
-                    <p className="modal-description">Lengkapi detail klaim untuk diproses oleh tim.</p>
+                    <p className="modal-description">{warranties.length > 0 ? "Pilih garansi yang masa berlakunya mencakup tanggal klaim." : <>Belum ada garansi yang berlaku. <Link href="/warranties">Daftarkan garansi</Link> terlebih dahulu.</>}</p>
                     {formError && <p className="form-error" role="alert">{formError}</p>}
                     <form onSubmit={handleSubmit}>
-                        <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi aktif</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}</option>)}</select></label>
+                        <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi yang berlaku</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}{warranty.status === "expiring" ? " (Segera berakhir)" : ""}</option>)}</select></label>
                         <label>Tanggal klaim<input name="claim_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
                         <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan keluhan pelanggan..." rows={4} required /></label>
                         <label>Catatan awal<textarea name="note" placeholder="Catatan tambahan (opsional)" rows={3} /></label>
@@ -204,7 +217,15 @@ export default function ClaimsPage() {
                     {nextStatusOptions[selectedClaim.status] && <form className="status-update-form" onSubmit={handleStatusSubmit}>
                         <p className="dashboard-kicker">PERBARUI STATUS</p>
                         {statusError && <p className="form-error" role="alert">{statusError}</p>}
-                        <label>Status berikutnya<select name="status" required defaultValue=""><option value="" disabled>Pilih status</option>{nextStatusOptions[selectedClaim.status].map((option) => <option key={option} value={option}>{statusLabels[option]}</option>)}</select></label>
+                        <label>Status berikutnya<select name="status" required value={nextStatus} onChange={(event) => setNextStatus(event.target.value)}><option value="" disabled>Pilih status</option>{nextStatusOptions[selectedClaim.status].map((option) => <option key={option} value={option}>{statusLabels[option]}</option>)}</select></label>
+                        {nextStatus === "forwarded_to_vendor" && <>
+                            <label>Tanggal diteruskan<input name="forwarded_date" type="date" required /></label>
+                            <label>Nomor referensi vendor<input name="vendor_reference_number" required placeholder="Masukkan nomor referensi" /></label>
+                        </>}
+                        {nextStatus === "completed" && <>
+                            <label>Tanggal selesai<input name="resolution_date" type="date" required /></label>
+                            <label>Catatan penyelesaian<textarea name="resolution_note" rows={3} required placeholder="Tuliskan hasil penyelesaian..." /></label>
+                        </>}
                         <label>Catatan penanganan<textarea name="status_note" rows={3} required placeholder="Tuliskan tindakan atau hasil penanganan..." /></label>
                         <button className="primary-action" type="submit" disabled={isStatusSaving}>{isStatusSaving ? "Menyimpan..." : "Simpan status"}</button>
                     </form>}

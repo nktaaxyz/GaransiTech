@@ -13,13 +13,28 @@
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
+  background: #f4f7fb;
+  color: #17233b;
   font-family: Arial, Helvetica, sans-serif;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
 }
 
 .auth-page {
@@ -1098,6 +1113,10 @@ body {
 .claim-modal {
   position: relative;
   width: min(100%, 470px);
+  max-height: calc(100vh - 40px);
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 28px;
   border-radius: 12px;
   background: #fff;
@@ -1210,7 +1229,8 @@ body {
   display: grid;
 }
 .claim-modal input,
-.claim-modal textarea {
+.claim-modal textarea,
+.claim-modal select {
   padding: 11px 12px;
   border: 1px solid #dbe2eb;
   border-radius: 8px;
@@ -1223,6 +1243,7 @@ body {
 }
 .claim-modal input:focus,
 .claim-modal textarea:focus,
+.claim-modal select:focus,
 .search-field input:focus,
 .claim-filters select:focus {
   outline: none;

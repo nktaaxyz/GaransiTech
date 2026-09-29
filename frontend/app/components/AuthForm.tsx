@@ -70,7 +70,6 @@ export default function AuthForm({ mode }: { mode: Mode }) {
             <label>Email<input name="email" type="email" placeholder="nama@email.com" autoComplete="email" required /></label>
             <label>Kata sandi<input name="password" type="password" placeholder={isLogin ? "Masukkan kata sandi" : "Minimal 8 karakter"} autoComplete={isLogin ? "current-password" : "new-password"} minLength={8} required /></label>
             {!isLogin && <label>Konfirmasi kata sandi<input name="password_confirmation" type="password" placeholder="Ulangi kata sandi" autoComplete="new-password" minLength={8} required /></label>}
-            {isLogin && <div className="form-options"><label className="remember"><input type="checkbox" /> Ingat saya</label><a href="#reset">Lupa kata sandi?</a></div>}
             {error && <p className="form-error" role="alert">{error}</p>}
             <button className="auth-submit" type="submit" disabled={isLoading}>{isLoading ? "Memproses..." : isLogin ? "Masuk" : "Daftar"}</button>
           </form>
