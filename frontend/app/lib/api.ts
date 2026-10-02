@@ -31,12 +31,13 @@ export type ClaimStatusLog = {
   new_status: string;
   note: string;
   created_at?: string;
+  changed_by?: { id: number; name: string } | null;
 };
 
 export type ProductUnit = {
   id: number;
   serial_number: string;
-  product?: { id: number; name: string };
+  product?: { id: number; name: string; category?: string | null; vendor?: Pick<Vendor, "id" | "name"> };
   customer?: { id: number; name: string };
 };
 
@@ -73,14 +74,20 @@ export type Warranty = {
   notes: string | null;
   status: "active" | "expiring" | "expired";
   product_unit: ProductUnit;
+  claims?: Claim[];
 };
 
-type PaginatedClaims = {
-  data: Claim[];
-};
-
-type Paginated<T> = {
+export type Paginated<T> = {
   data: T[];
+  current_page: number;
+  last_page: number;
+  per_page: number;
+  total: number;
+};
+
+export type DashboardSummary = {
+  warranties: { active: number; expiring: number; expired: number; total: number };
+  claims: { received: number; forwarded_to_vendor: number; processing_by_vendor: number; completed: number; rejected: number; total: number };
 };
 
 export function getToken(): string | null {
@@ -123,8 +130,16 @@ export function getCurrentUser(): Promise<ApiUser> {
 }
 
 export async function getClaims(): Promise<Claim[]> {
-  const response = await request<PaginatedClaims>("/claims");
+  const response = await request<Paginated<Claim>>("/claims");
   return response.data;
+}
+
+export function getClaimsPage(params: { search?: string; status?: string; page?: number } = {}): Promise<Paginated<Claim>> {
+  const query = new URLSearchParams();
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.status && params.status !== "all") query.set("status", params.status);
+  if (params.page) query.set("page", String(params.page));
+  return request<Paginated<Claim>>(`/claims${query.size ? `?${query}` : ""}`);
 }
 
 export async function getWarranties(search = "", status = ""): Promise<Warranty[]> {
@@ -134,6 +149,38 @@ export async function getWarranties(search = "", status = ""): Promise<Warranty[
   const suffix = params.toString() ? `?${params.toString()}` : "";
   const response = await request<Paginated<Warranty>>(`/warranties${suffix}`);
   return response.data;
+}
+
+export function getWarrantiesPage(params: { search?: string; status?: string; page?: number } = {}): Promise<Paginated<Warranty>> {
+  const query = new URLSearchParams();
+  if (params.search?.trim()) query.set("search", params.search.trim());
+  if (params.status) query.set("status", params.status);
+  if (params.page) query.set("page", String(params.page));
+  return request<Paginated<Warranty>>(`/warranties${query.size ? `?${query}` : ""}`);
+}
+
+export function getWarranty(id: number): Promise<Warranty> {
+  return request<Warranty>(`/warranties/${id}`);
+}
+
+export function getDashboardSummary(): Promise<DashboardSummary> {
+  return request<DashboardSummary>("/dashboard/summary");
+}
+
+function reportQuery(params: { from?: string; to?: string; search?: string; status?: string; page?: number }): string {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, String(value));
+  });
+  return query.size ? `?${query}` : "";
+}
+
+export function getWarrantyReport(params: { from?: string; to?: string; search?: string; status?: string; page?: number } = {}): Promise<Paginated<Warranty>> {
+  return request<Paginated<Warranty>>(`/reports/warranties${reportQuery(params)}`);
+}
+
+export function getClaimReport(params: { from?: string; to?: string; search?: string; status?: string; page?: number } = {}): Promise<Paginated<Claim>> {
+  return request<Paginated<Claim>>(`/reports/claims${reportQuery(params)}`);
 }
 
 export async function getProductUnits(): Promise<ProductUnit[]> {

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { createClaim, getClaims, getToken, getWarranties, updateClaimStatus, type Claim, type Warranty } from "../lib/api";
+import { createClaim, getClaimsPage, getToken, getWarranties, updateClaimStatus, type Claim, type Warranty, type Paginated } from "../lib/api";
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
@@ -26,7 +26,10 @@ export default function ClaimsPage() {
     const [claims, setClaims] = useState<Claim[]>([]);
     const [warranties, setWarranties] = useState<Warranty[]>([]);
     const [query, setQuery] = useState("");
+    const [appliedQuery, setAppliedQuery] = useState("");
     const [status, setStatus] = useState("all");
+    const [page, setPage] = useState(1);
+    const [pagination, setPagination] = useState<Pick<Paginated<Claim>, "current_page" | "last_page" | "total">>({ current_page: 1, last_page: 1, total: 0 });
     const [isFormOpen, setIsFormOpen] = useState(false);
     const [selectedClaim, setSelectedClaim] = useState<Claim | null>(null);
     const [nextStatus, setNextStatus] = useState("");
@@ -43,9 +46,8 @@ export default function ClaimsPage() {
             return;
         }
 
-        Promise.all([getClaims(), getWarranties("", "active"), getWarranties("", "expiring")])
-            .then(([loadedClaims, activeWarranties, expiringWarranties]) => {
-                setClaims(loadedClaims);
+        Promise.all([getWarranties("", "active"), getWarranties("", "expiring")])
+            .then(([activeWarranties, expiringWarranties]) => {
                 setWarranties([...activeWarranties, ...expiringWarranties]);
             })
             .catch((requestError: unknown) => {
@@ -53,6 +55,31 @@ export default function ClaimsPage() {
             })
             .finally(() => setIsLoading(false));
     }, [router]);
+
+    useEffect(() => {
+        const timeout = window.setTimeout(() => {
+            setAppliedQuery(query);
+            setPage(1);
+        }, 350);
+        return () => window.clearTimeout(timeout);
+    }, [query]);
+
+    useEffect(() => {
+        if (!getToken()) return;
+        getClaimsPage({ search: appliedQuery, status, page })
+            .then((response) => {
+                setClaims(response.data);
+                setPagination({ current_page: response.current_page, last_page: response.last_page, total: response.total });
+            })
+            .catch((requestError: unknown) => setError(requestError instanceof Error ? requestError.message : "Data klaim tidak dapat dimuat."))
+            .finally(() => setIsLoading(false));
+    }, [appliedQuery, status, page]);
+
+    async function refreshClaims(nextPage = page) {
+        const response = await getClaimsPage({ search: appliedQuery, status, page: nextPage });
+        setClaims(response.data);
+        setPagination({ current_page: response.current_page, last_page: response.last_page, total: response.total });
+    }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
@@ -68,7 +95,8 @@ export default function ClaimsPage() {
                 damage_description: String(formData.get("damage_description")),
                 note: String(formData.get("note") || ""),
             });
-            setClaims(await getClaims());
+            setPage(1);
+            await refreshClaims(1);
             setIsFormOpen(false);
             form.reset();
         } catch (requestError) {
@@ -103,6 +131,7 @@ export default function ClaimsPage() {
             });
             setClaims((currentClaims) => currentClaims.map((claim) => claim.id === updatedClaim.id ? updatedClaim : claim));
             setSelectedClaim(updatedClaim);
+            await refreshClaims();
             setNextStatus("");
             form.reset();
         } catch (requestError) {
@@ -112,18 +141,10 @@ export default function ClaimsPage() {
         }
     }
 
-    const filteredClaims = useMemo(() => {
-        const normalizedQuery = query.toLowerCase().trim();
-
-        return claims.filter((claim) => {
-            const matchesStatus = status === "all" || claim.status === status;
-            const searchable = [claim.claim_code, claim.serial_number, claim.customer?.name, claim.product?.name]
-                .filter(Boolean)
-                .join(" ")
-                .toLowerCase();
-            return matchesStatus && (!normalizedQuery || searchable.includes(normalizedQuery));
-        });
-    }, [claims, query, status]);
+    const filteredClaims = claims;
+    const timeline = [...(selectedClaim?.status_logs || [])].sort((left, right) =>
+        new Date(left.created_at || 0).getTime() - new Date(right.created_at || 0).getTime(),
+    );
 
     const countByStatus = (claimStatus: string) =>
         claims.filter((claim) => claimStatus === "all" || claim.status === claimStatus).length;
@@ -155,11 +176,11 @@ export default function ClaimsPage() {
                     <div className="claims-list-toolbar">
                         <div>
                             <h2>Semua klaim</h2>
-                            <span>{filteredClaims.length} data ditemukan</span>
+                            <span>{pagination.total} data ditemukan</span>
                         </div>
                         <div className="claim-filters">
-                            <label className="search-field"><span>⌕</span><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Cari kode, pelanggan, produk..." /></label>
-                            <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filter status klaim">
+                            <label className="search-field"><span>⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); setIsLoading(true); }} placeholder="Cari kode, pelanggan, produk..." /></label>
+                            <select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); setIsLoading(true); }} aria-label="Filter status klaim">
                                 {statusOptions.map((option) => <option key={option} value={option}>{option === "all" ? "Semua status" : statusLabels[option]}</option>)}
                             </select>
                         </div>
@@ -181,6 +202,7 @@ export default function ClaimsPage() {
                         </table>}
                         {!isLoading && filteredClaims.length === 0 && <div className="empty-state"><strong>Klaim tidak ditemukan</strong><span>Coba ubah kata kunci atau filter status.</span></div>}
                     </div>
+                    {pagination.last_page > 1 && <nav className="pagination-controls" aria-label="Halaman klaim"><button type="button" className="secondary-action" disabled={page <= 1} onClick={() => { setIsLoading(true); setPage((currentPage) => currentPage - 1); }}>Sebelumnya</button><span>Halaman {pagination.current_page} dari {pagination.last_page}</span><button type="button" className="secondary-action" disabled={page >= pagination.last_page} onClick={() => { setIsLoading(true); setPage((currentPage) => currentPage + 1); }}>Berikutnya</button></nav>}
                 </section>
             </section>
 
@@ -214,6 +236,10 @@ export default function ClaimsPage() {
                     </div>
                     <div className="claim-detail-note"><small>Deskripsi kerusakan</small><p>{selectedClaim.damage_description || "Belum ada deskripsi kerusakan."}</p></div>
                     {selectedClaim.note && <div className="claim-detail-note"><small>Catatan</small><p>{selectedClaim.note}</p></div>}
+                    <section className="claim-timeline" aria-label="Riwayat status klaim">
+                        <div className="section-heading"><div><p className="dashboard-kicker">RIWAYAT</p><h3>Perjalanan klaim</h3></div></div>
+                        {timeline.length === 0 ? <p className="timeline-empty">Belum ada riwayat status.</p> : <ol>{timeline.map((log) => <li key={log.id}><span className="timeline-marker" /><div><strong>{log.old_status ? `${statusLabels[log.old_status] || log.old_status} → ` : ""}{statusLabels[log.new_status] || log.new_status}</strong><p>{log.note}</p><small>{log.created_at ? new Date(log.created_at).toLocaleString("id-ID", { dateStyle: "medium", timeStyle: "short" }) : "Waktu tidak tersedia"}{log.changed_by?.name ? ` · ${log.changed_by.name}` : ""}</small></div></li>)}</ol>}
+                    </section>
                     {nextStatusOptions[selectedClaim.status] && <form className="status-update-form" onSubmit={handleStatusSubmit}>
                         <p className="dashboard-kicker">PERBARUI STATUS</p>
                         {statusError && <p className="form-error" role="alert">{statusError}</p>}

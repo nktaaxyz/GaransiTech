@@ -7,10 +7,12 @@ import {
   ApiUser,
   Claim,
   clearToken,
-  getClaims,
+  getClaimsPage,
   getCurrentUser,
+  getDashboardSummary,
   getToken,
   logout,
+  type DashboardSummary,
 } from "../lib/api";
 
 const statusLabels: Record<string, string> = {
@@ -26,17 +28,17 @@ export default function Dashboard() {
   const pathname = usePathname();
   const [user, setUser] = useState<ApiUser | null>(null);
   const [claims, setClaims] = useState<Claim[]>([]);
+  const [summary, setSummary] = useState<DashboardSummary | null>(null);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(true);
 
-  const activeClaims = claims.filter(
-    (claim) => !["completed", "rejected"].includes(claim.status),
-  ).length;
-  const completedClaims = claims.filter((claim) => claim.status === "completed").length;
-  const rejectedClaims = claims.filter((claim) => claim.status === "rejected").length;
-  const receivedClaims = claims.filter((claim) => claim.status === "received").length;
-  const completionRate = claims.length
-    ? Math.round((completedClaims / claims.length) * 100)
+  const activeClaims = (summary?.claims.total ?? 0) - (summary?.claims.completed ?? 0) - (summary?.claims.rejected ?? 0);
+  const completedClaims = summary?.claims.completed ?? 0;
+  const rejectedClaims = summary?.claims.rejected ?? 0;
+  const receivedClaims = summary?.claims.received ?? 0;
+  const totalClaims = summary?.claims.total ?? 0;
+  const completionRate = totalClaims
+    ? Math.round((completedClaims / totalClaims) * 100)
     : 0;
 
   useEffect(() => {
@@ -45,10 +47,11 @@ export default function Dashboard() {
       return;
     }
 
-    Promise.all([getCurrentUser(), getClaims()])
-      .then(([currentUser, currentClaims]) => {
+    Promise.all([getCurrentUser(), getClaimsPage(), getDashboardSummary()])
+      .then(([currentUser, claimsPage, dashboardSummary]) => {
         setUser(currentUser);
-        setClaims(currentClaims);
+        setClaims(claimsPage.data);
+        setSummary(dashboardSummary);
       })
       .catch((requestError: unknown) => {
         clearToken();
@@ -89,7 +92,8 @@ export default function Dashboard() {
           <Link className={`nav-item ${pathname === "/product-units" ? "active" : ""}`} href="/product-units"><span>05</span> Unit produk</Link>
           <Link className={`nav-item ${pathname === "/warranties" ? "active" : ""}`} href="/warranties"><span>06</span> Garansi</Link>
           <Link className={`nav-item ${pathname === "/claims" ? "active" : ""}`} href="/claims"><span>07</span> Klaim garansi</Link>
-          <Link className="nav-item" href="/#activity"><span>08</span> Aktivitas</Link>
+          <Link className={`nav-item ${pathname === "/reports" ? "active" : ""}`} href="/reports"><span>08</span> Laporan</Link>
+          <Link className="nav-item" href="/#activity"><span>09</span> Aktivitas</Link>
         </nav>
         <button className="sidebar-logout" type="button" onClick={handleLogout}><span aria-hidden="true">↪</span> Keluar</button>
       </aside>
@@ -113,10 +117,16 @@ export default function Dashboard() {
         <div className="dashboard-content" id="overview">
           {error && <p className="form-error" role="alert">{error}</p>}
           <section className="stats-grid" aria-label="Ringkasan klaim">
-            <article className="stat-card stat-primary"><div className="stat-label">TOTAL KLAIM</div><strong>{claims.length}</strong><span className="stat-note">Semua klaim terdaftar</span></article>
+            <article className="stat-card stat-primary"><div className="stat-label">TOTAL KLAIM</div><strong>{totalClaims}</strong><span className="stat-note">Semua klaim terdaftar</span></article>
             <article className="stat-card"><div className="stat-label">SEDANG DIPROSES</div><strong>{activeClaims}</strong><span className="stat-note positive">{receivedClaims} baru masuk</span></article>
             <article className="stat-card"><div className="stat-label">SELESAI</div><strong>{completedClaims}</strong><span className="stat-note positive">{completionRate}% dari total klaim</span></article>
             <article className="stat-card"><div className="stat-label">DITOLAK</div><strong>{rejectedClaims}</strong><span className="stat-note">Perlu perhatian</span></article>
+          </section>
+
+          <section className="warranty-stats-grid" aria-label="Ringkasan garansi">
+            <article><span>Garansi aktif</span><strong>{summary?.warranties.active ?? 0}</strong><Link href="/warranties?status=active">Lihat daftar <span aria-hidden="true">→</span></Link></article>
+            <article className="warranty-stat-expiring"><span>Segera berakhir</span><strong>{summary?.warranties.expiring ?? 0}</strong><Link href="/warranties?status=expiring">Periksa garansi <span aria-hidden="true">→</span></Link></article>
+            <article className="warranty-stat-expired"><span>Garansi berakhir</span><strong>{summary?.warranties.expired ?? 0}</strong><Link href="/warranties?status=expired">Lihat riwayat <span aria-hidden="true">→</span></Link></article>
           </section>
 
           <section className="workspace-strip" aria-label="Modul kerja">
@@ -129,7 +139,7 @@ export default function Dashboard() {
             <article className="activity-card" id="activity">
               <div className="section-heading"><div><p className="dashboard-kicker">PERFORMA</p><h2>Alur klaim</h2></div><span className="period-label">Saat ini</span></div>
               <div className="progress-overview"><div><strong>{completionRate}%</strong><span>tingkat penyelesaian</span></div><div className="progress-ring" style={{ "--progress": `${completionRate * 3.6}deg` } as React.CSSProperties}><div>{completedClaims}/{claims.length || 0}</div></div></div>
-              <div className="status-bars"><div><span>Diterima</span><b>{receivedClaims}</b><i><em style={{ width: `${claims.length ? (receivedClaims / claims.length) * 100 : 0}%` }} /></i></div><div><span>Selesai</span><b>{completedClaims}</b><i><em className="bar-success" style={{ width: `${completionRate}%` }} /></i></div><div><span>Ditolak</span><b>{rejectedClaims}</b><i><em className="bar-danger" style={{ width: `${claims.length ? (rejectedClaims / claims.length) * 100 : 0}%` }} /></i></div></div>
+              <div className="status-bars"><div><span>Diterima</span><b>{receivedClaims}</b><i><em style={{ width: `${totalClaims ? (receivedClaims / totalClaims) * 100 : 0}%` }} /></i></div><div><span>Selesai</span><b>{completedClaims}</b><i><em className="bar-success" style={{ width: `${completionRate}%` }} /></i></div><div><span>Ditolak</span><b>{rejectedClaims}</b><i><em className="bar-danger" style={{ width: `${totalClaims ? (rejectedClaims / totalClaims) * 100 : 0}%` }} /></i></div></div>
             </article>
             <article className="insight-card">
               <p className="dashboard-kicker">STATUS HARI INI</p><h2>Jaga ritme pelayanan</h2><p>{activeClaims ? `${activeClaims} klaim masih membutuhkan tindak lanjut.` : "Semua klaim sudah memiliki hasil akhir."}</p><div className="insight-line"><span>Target penyelesaian</span><strong>80%</strong></div><div className="target-track"><i style={{ width: `${Math.min(completionRate, 100)}%` }} /></div></article>
