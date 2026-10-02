@@ -85,7 +85,17 @@ class DashboardReportApiTest extends TestCase
 
         $this->getJson('/api/reports/warranties?status=active&search=GAR-REPORT')
             ->assertOk()
-            ->assertJsonCount(1, 'data');
+            ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/reports/warranties?status=expired&search=GAR-REPORT')
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.status', 'expired');
+
+        $this->getJson('/api/dashboard/summary')
+            ->assertOk()
+            ->assertJsonPath('warranties.active', 0)
+            ->assertJsonPath('warranties.expired', 1);
 
         $this->getJson('/api/reports/claims?from=2026-09-19&to=2026-09-21&status=completed&search=CLM-REPORT')
             ->assertOk()

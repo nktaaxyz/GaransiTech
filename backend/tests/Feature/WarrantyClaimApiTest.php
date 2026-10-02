@@ -156,6 +156,54 @@ class WarrantyClaimApiTest extends TestCase
             ->assertJsonValidationErrors(['resolution_date', 'resolution_note']);
     }
 
+    public function test_completed_claim_ends_warranty_and_prevents_another_claim(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+        'warranty_id' => $warranty->id,
+        'claim_date' => '2026-09-23',
+        'damage_description' => 'Tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        'status' => 'forwarded_to_vendor',
+        'note' => 'Diteruskan ke vendor.',
+        'forwarded_date' => '2026-09-23',
+        'vendor_reference_number' => 'VENDOR-003',
+        ])->assertOk();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        'status' => 'processing_by_vendor',
+        'note' => 'Sedang diproses vendor.',
+        ])->assertOk();
+
+        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        'status' => 'completed',
+        'note' => 'Unit pengganti diberikan.',
+        'resolution_date' => '2026-09-23',
+        'resolution_note' => 'Unit diganti.',
+        ])->assertOk();
+
+        $this->getJson('/api/warranties/' . $warranty->id)
+        ->assertOk()
+        ->assertJsonPath('status', 'expired');
+
+        $this->getJson('/api/warranties?status=active')
+        ->assertOk()
+        ->assertJsonCount(0, 'data');
+
+        $this->getJson('/api/warranties?status=expired')
+        ->assertOk()
+        ->assertJsonCount(1, 'data')
+        ->assertJsonPath('data.0.warranty_code', $warranty->warranty_code);
+
+        $this->postJson('/api/claims', [
+        'warranty_id' => $warranty->id,
+        'claim_date' => '2026-09-23',
+        'damage_description' => 'Klaim kedua.',
+        ])->assertUnprocessable()->assertJsonValidationErrors(['warranty_id']);
+    }
+
     public function test_claim_list_supports_status_and_search_filters(): void
     {
         $warranty = $this->createWarranty();

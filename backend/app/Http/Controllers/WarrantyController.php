@@ -21,17 +21,26 @@ class WarrantyController extends Controller
 
         $warranties = Warranty::query()
             ->with(['productUnit.product', 'productUnit.customer'])
+            ->withExists([
+                'claims as has_completed_claim' => fn ($query) => $query->where('status', 'completed'),
+            ])
             ->when($statusFilter !== null, function ($query) use ($statusFilter): void {
                 $today = CarbonImmutable::today()->toDateString();
                 $threshold = CarbonImmutable::today()->addDays(30)->toDateString();
 
                 if ($statusFilter === 'expired') {
-                    $query->whereDate('end_date', '<', $today);
+                    $query->where(function ($warrantyQuery) use ($today): void {
+                        $warrantyQuery
+                            ->whereDate('end_date', '<', $today)
+                            ->orWhereHas('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
+                    });
                 } elseif ($statusFilter === 'expiring') {
                     $query->whereDate('end_date', '>=', $today)
-                        ->whereDate('end_date', '<=', $threshold);
+                        ->whereDate('end_date', '<=', $threshold)
+                        ->whereDoesntHave('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
                 } else {
-                    $query->whereDate('end_date', '>', $threshold);
+                    $query->whereDate('end_date', '>', $threshold)
+                        ->whereDoesntHave('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
                 }
             })
             ->when($search !== '', function ($query) use ($search): void {
@@ -77,7 +86,11 @@ class WarrantyController extends Controller
     public function show(Warranty $warranty): JsonResponse
     {
         return response()->json(
-            $this->withStatus($warranty->load(['productUnit.product', 'productUnit.customer', 'claims'])),
+            $this->withStatus($warranty
+                ->load(['productUnit.product', 'productUnit.customer', 'claims'])
+                ->loadExists([
+                    'claims as has_completed_claim' => fn ($query) => $query->where('status', 'completed'),
+                ])),
         );
     }
 
@@ -86,7 +99,11 @@ class WarrantyController extends Controller
         $warranty->update($this->validatedData($request, $warranty));
 
         return response()->json(
-            $this->withStatus($warranty->fresh()->load(['productUnit.product', 'productUnit.customer'])),
+            $this->withStatus($warranty->fresh()
+                ->load(['productUnit.product', 'productUnit.customer'])
+                ->loadExists([
+                    'claims as has_completed_claim' => fn ($query) => $query->where('status', 'completed'),
+                ])),
         );
     }
 
@@ -111,9 +128,11 @@ class WarrantyController extends Controller
         $endDate = CarbonImmutable::parse($warranty->end_date);
         $expiringThreshold = $today->addDays(30);
 
-        $status = $endDate->isBefore($today)
+        $status = $warranty->getAttribute('has_completed_claim')
             ? 'expired'
-            : ($endDate->lessThanOrEqualTo($expiringThreshold) ? 'expiring' : 'active');
+            : ($endDate->isBefore($today)
+            ? 'expired'
+            : ($endDate->lessThanOrEqualTo($expiringThreshold) ? 'expiring' : 'active'));
 
         $warranty->setAttribute('status', $status);
 

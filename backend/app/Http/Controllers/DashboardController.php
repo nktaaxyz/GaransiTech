@@ -17,12 +17,22 @@ class DashboardController extends Controller
 
         return response()->json([
             'warranties' => [
-                'active' => Warranty::query()->whereDate('end_date', '>', $threshold)->count(),
+                'active' => Warranty::query()
+                    ->whereDate('end_date', '>', $threshold)
+                    ->whereDoesntHave('claims', fn ($query) => $query->where('status', 'completed'))
+                    ->count(),
                 'expiring' => Warranty::query()
                     ->whereDate('end_date', '>=', $today)
                     ->whereDate('end_date', '<=', $threshold)
+                    ->whereDoesntHave('claims', fn ($query) => $query->where('status', 'completed'))
                     ->count(),
-                'expired' => Warranty::query()->whereDate('end_date', '<', $today)->count(),
+                'expired' => Warranty::query()
+                    ->where(function ($query) use ($today): void {
+                        $query
+                            ->whereDate('end_date', '<', $today)
+                            ->orWhereHas('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
+                    })
+                    ->count(),
                 'total' => Warranty::query()->count(),
             ],
             'claims' => [
@@ -49,15 +59,25 @@ class DashboardController extends Controller
         $threshold = $today->addDays(30);
         $warranties = Warranty::query()
             ->with(['productUnit.product', 'productUnit.customer'])
+            ->withExists([
+                'claims as has_completed_claim' => fn ($query) => $query->where('status', 'completed'),
+            ])
             ->when($validated['from'] ?? null, fn ($query, $from) => $query->whereDate('start_date', '>=', $from))
             ->when($validated['to'] ?? null, fn ($query, $to) => $query->whereDate('start_date', '<=', $to))
             ->when($validated['status'] ?? null, function ($query, $status) use ($today, $threshold): void {
                 if ($status === 'expired') {
-                    $query->whereDate('end_date', '<', $today);
+                    $query->where(function ($warrantyQuery) use ($today): void {
+                        $warrantyQuery
+                            ->whereDate('end_date', '<', $today)
+                            ->orWhereHas('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
+                    });
                 } elseif ($status === 'expiring') {
-                    $query->whereDate('end_date', '>=', $today)->whereDate('end_date', '<=', $threshold);
+                    $query->whereDate('end_date', '>=', $today)
+                        ->whereDate('end_date', '<=', $threshold)
+                        ->whereDoesntHave('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
                 } else {
-                    $query->whereDate('end_date', '>', $threshold);
+                    $query->whereDate('end_date', '>', $threshold)
+                        ->whereDoesntHave('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
                 }
             })
             ->when($validated['search'] ?? null, function ($query, $search): void {
@@ -78,9 +98,11 @@ class DashboardController extends Controller
         $warranties->getCollection()->transform(function (Warranty $warranty) use ($today, $threshold): Warranty {
             $warranty->setAttribute(
                 'status',
-                $warranty->end_date->isBefore($today)
+                $warranty->getAttribute('has_completed_claim')
                     ? 'expired'
-                    : ($warranty->end_date->lessThanOrEqualTo($threshold) ? 'expiring' : 'active'),
+                    : ($warranty->end_date->isBefore($today)
+                    ? 'expired'
+                    : ($warranty->end_date->lessThanOrEqualTo($threshold) ? 'expiring' : 'active')),
             );
 
             return $warranty;

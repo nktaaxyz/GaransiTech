@@ -57,6 +57,13 @@ class WarrantyClaimController extends Controller
 
         $warranty = Warranty::with('productUnit.product.vendor', 'productUnit.customer')
             ->findOrFail($validated['warranty_id']);
+
+        if ($warranty->claims()->where('status', 'completed')->exists()) {
+            throw ValidationException::withMessages([
+                'warranty_id' => ['Garansi ini sudah digunakan untuk klaim yang selesai.'],
+            ]);
+        }
+
         $claimDate = CarbonImmutable::parse($validated['claim_date']);
 
         if ($claimDate->lt($warranty->start_date) || $claimDate->gt($warranty->end_date)) {
