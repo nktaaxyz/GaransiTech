@@ -1516,6 +1516,185 @@ a {
     grid-column: 1 / -1;
   }
 }
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --background: #11191c;
+  --foreground: #e5ecec;
+}
+html[data-theme="dark"] body,
+html[data-theme="dark"] .dashboard-page,
+html[data-theme="dark"] .claims-page,
+html[data-theme="dark"] .auth-page,
+html[data-theme="dark"] .auth-content {
+  background: #11191c;
+  color: #e5ecec;
+}
+html[data-theme="dark"] .dashboard-sidebar {
+  background: #0b1726;
+}
+html[data-theme="dark"] .dashboard-topbar,
+html[data-theme="dark"] .claims-card,
+html[data-theme="dark"] .claims-list-panel,
+html[data-theme="dark"] .stat-card,
+html[data-theme="dark"] .activity-card,
+html[data-theme="dark"] .claim-overview > div,
+html[data-theme="dark"] .claim-modal,
+html[data-theme="dark"] .auth-box {
+  border-color: #29373d;
+  background: #192428;
+  color: #e5ecec;
+}
+html[data-theme="dark"] .dashboard-topbar h1,
+html[data-theme="dark"] .section-heading h2,
+html[data-theme="dark"] .insight-card h2,
+html[data-theme="dark"] .claims-list-toolbar h2,
+html[data-theme="dark"] .claims-heading h2,
+html[data-theme="dark"] .claim-modal h2,
+html[data-theme="dark"] .claim-detail-grid strong,
+html[data-theme="dark"] .claims-table td strong,
+html[data-theme="dark"] .stat-card strong,
+html[data-theme="dark"] .auth-box h2 {
+  color: #edf4f3;
+}
+html[data-theme="dark"] .topbar-subtitle,
+html[data-theme="dark"] .claims-heading > span,
+html[data-theme="dark"] .claims-list-toolbar > div > span,
+html[data-theme="dark"] .claim-detail-note p,
+html[data-theme="dark"] .insight-card > p:not(.dashboard-kicker),
+html[data-theme="dark"] .stat-note,
+html[data-theme="dark"] .claim-overview span,
+html[data-theme="dark"] .auth-description,
+html[data-theme="dark"] .auth-switch {
+  color: #a0b0b1;
+}
+html[data-theme="dark"] .workspace-strip,
+html[data-theme="dark"] .insight-card {
+  border-color: #31464a;
+  background: #203438;
+}
+html[data-theme="dark"] .workspace-strip strong,
+html[data-theme="dark"] .workspace-strip div span:not(.workspace-icon) {
+  color: #d4e1df;
+}
+html[data-theme="dark"] .claims-table th {
+  background: #202d31;
+  color: #aab9bb;
+}
+html[data-theme="dark"] .claims-table td,
+html[data-theme="dark"] .report-toolbar,
+html[data-theme="dark"] .report-filters {
+  border-color: #29373d;
+  color: #d7e0df;
+}
+html[data-theme="dark"] .claims-table tbody tr:hover {
+  background: #202d31;
+}
+html[data-theme="dark"] .search-field,
+html[data-theme="dark"] .claim-filters select,
+html[data-theme="dark"] .report-filters input[type="date"],
+html[data-theme="dark"] .report-filters select,
+html[data-theme="dark"] .claim-modal input,
+html[data-theme="dark"] .claim-modal textarea,
+html[data-theme="dark"] .claim-modal select,
+html[data-theme="dark"] .status-update-form select,
+html[data-theme="dark"] .status-update-form textarea,
+html[data-theme="dark"] .auth-box input:not([type="checkbox"]) {
+  border-color: #39494e;
+  background-color: #141f23;
+  color: #e5ecec;
+}
+html[data-theme="dark"] .search-field input,
+html[data-theme="dark"] .claim-modal input,
+html[data-theme="dark"] .claim-modal textarea,
+html[data-theme="dark"] .claim-modal select,
+html[data-theme="dark"] .auth-box form > label,
+html[data-theme="dark"] .claim-modal label,
+html[data-theme="dark"] .status-update-form label,
+html[data-theme="dark"] .report-filters > label:not(.search-field),
+html[data-theme="dark"] .claim-detail-grid small,
+html[data-theme="dark"] .claim-detail-note small {
+  color: #e5ecec;
+}
+html[data-theme="dark"] .search-field input::placeholder,
+html[data-theme="dark"] .claim-modal input::placeholder,
+html[data-theme="dark"] .claim-modal textarea::placeholder {
+  color: #849598;
+}
+html[data-theme="dark"] .modal-backdrop {
+  background: #03090dc9;
+}
+html[data-theme="dark"] .modal-close,
+html[data-theme="dark"] .secondary-action {
+  border-color: #39494e;
+  background: #202d31;
+  color: #d5e0df;
+}
+html[data-theme="dark"] .claim-detail-grid,
+html[data-theme="dark"] .claim-detail-note,
+html[data-theme="dark"] .status-update-form,
+html[data-theme="dark"] .claim-timeline,
+html[data-theme="dark"] .pagination-controls {
+  border-color: #2b3a3f;
+}
+html[data-theme="dark"] .warranty-claims-list li {
+  border-color: #34444a;
+  background: #141f23;
+}
+html[data-theme="dark"] .report-tabs {
+  border-color: #39494e;
+  background: #141f23;
+}
+html[data-theme="dark"] .report-tabs button.active {
+  background: #2b3b40;
+  color: #b7d3ff;
+}
+html[data-theme="dark"] .empty-state,
+html[data-theme="dark"] .dashboard-state {
+  color: #a0b0b1;
+}
+html[data-theme="dark"] .empty-state strong {
+  color: #dce7e5;
+}
+.theme-toggle {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 9;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 1px solid #d9e1ec;
+  border-radius: 50%;
+  background: #fff;
+  color: #263650;
+  box-shadow: 0 5px 18px #10284d24;
+  cursor: pointer;
+  transition:
+    background 0.18s ease,
+    color 0.18s ease,
+    transform 0.18s ease;
+}
+.theme-toggle:hover {
+  transform: translateY(-2px);
+}
+.theme-toggle span {
+  font-size: 20px;
+  line-height: 1;
+}
+.theme-icon-light,
+html[data-theme="dark"] .theme-icon-dark {
+  display: none;
+}
+html[data-theme="dark"] .theme-icon-light {
+  display: inline;
+}
+html[data-theme="dark"] .theme-toggle {
+  border-color: #39494e;
+  background: #202d31;
+  color: #f4cd69;
+  box-shadow: 0 5px 18px #0007;
+}
 @media (max-width: 900px) {
   .dashboard-sidebar {
     width: 204px;
