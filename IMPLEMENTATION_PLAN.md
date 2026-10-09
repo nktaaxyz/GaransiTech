@@ -299,7 +299,7 @@ Frontend:
 
 - [x] Daftar garansi.
 - [x] Form registrasi garansi.
-- [ ] Detail garansi dan unit produk.
+- [x] Detail garansi dan unit produk.
 - [x] Badge status garansi.
 - [x] Filter garansi yang akan berakhir.
 
@@ -349,7 +349,7 @@ Frontend:
 - [x] Daftar klaim dengan filter status.
 - [x] Form klaim berdasarkan kode garansi atau serial number.
 - [x] Detail klaim.
-- [ ] Timeline riwayat status.
+- [x] Timeline riwayat status.
 - [x] Form update status dan catatan.
 - [x] Tampilan klaim yang sedang diproses.
 
@@ -380,31 +380,31 @@ GET /api/reports/claims
 
 Frontend:
 
-- [ ] Kartu ringkasan garansi aktif, akan berakhir, dan berakhir.
+- [x] Kartu ringkasan garansi aktif, akan berakhir, dan berakhir.
 - [x] Kartu klaim diterima, diproses, selesai, dan ditolak.
 - [x] Daftar klaim yang masih diproses.
-- [ ] Filter periode laporan.
-- [ ] Pencarian dengan debounce dan pagination.
+- [x] Filter periode laporan.
+- [x] Pencarian dengan debounce dan pagination.
 
-## Tahap 7 — Klasifikasi AI sebagai rekomendasi
+## Tahap 7 — Transkripsi suara menjadi poin-poin
 
-**Tujuan:** membantu admin mengelompokkan keluhan tanpa mengambil keputusan otomatis.
+**Tujuan:** membantu admin mengubah penjelasan lisan tentang kerusakan menjadi teks yang tersusun sebagai poin-poin.
 
 Pekerjaan:
 
-- [ ] Definisikan format input deskripsi kerusakan.
-- [ ] Definisikan output kategori: `hardware`, `software`, `network`.
-- [ ] Definisikan output urgensi.
-- [ ] Simpan hasil AI dan hasil koreksi admin secara terpisah.
-- [ ] Tampilkan indikator bahwa hasil AI adalah rekomendasi.
-- [ ] Tangani timeout, error, dan layanan AI tidak tersedia.
-- [ ] Pastikan klaim tetap dapat dibuat tanpa AI.
+- [ ] Sediakan cara untuk merekam suara atau memasukkan rekaman suara.
+- [ ] Ubah suara menjadi teks transkrip berbahasa Indonesia.
+- [ ] Susun isi transkrip menjadi poin-poin yang mudah dibaca.
+- [ ] Izinkan admin meninjau dan mengedit transkrip serta poin-poin sebelum digunakan.
+- [ ] Isi deskripsi kerusakan pada formulir klaim dengan teks yang sudah ditinjau.
+- [ ] Tangani izin mikrofon, suara yang tidak jelas, dan kegagalan transkripsi.
+- [ ] Pastikan klaim tetap dapat dibuat atau diisi manual tanpa fitur suara.
 
 Kriteria selesai:
 
-- Hasil AI tidak langsung mengubah keputusan klaim.
-- Admin dapat mengoreksi rekomendasi.
-- Kegagalan AI tidak memblokir workflow klaim.
+- Suara dapat ditranskripsikan menjadi teks dan ditampilkan sebagai poin-poin.
+- Admin dapat meninjau dan mengedit hasil sebelum menyimpannya sebagai deskripsi kerusakan.
+- Kegagalan fitur suara tidak memblokir workflow klaim manual.
 
 ## Tahap 8 — Audit aktivitas dan keamanan
 
@@ -435,8 +435,8 @@ Pekerjaan:
 
 ### Frontend
 
-- [ ] Lint dan TypeScript check.
-- [ ] Build production.
+- [x] Lint dan TypeScript check.
+- [x] Build production.
 - [ ] Uji form validasi.
 - [ ] Uji redirect token dan `401`.
 - [ ] Uji loading, empty, success, dan error state.
@@ -469,28 +469,28 @@ npm run build
 
 ## 5. Urutan Prioritas
 
-| Prioritas | Modul | Alasan |
-|---|---|---|
-| P0 | Login, token, proteksi API | Fondasi semua modul |
-| P0 | Customers, vendors, products, product units | Data prasyarat garansi |
-| P0 | Warranties | Inti registrasi garansi |
-| P0 | Claims dan status logs | Inti proses layanan |
-| P1 | Dashboard dan pencarian | Pemantauan operasional |
-| P1 | Laporan | Evaluasi layanan |
-| P2 | Activity logs | Audit tambahan |
-| P2 | AI classification | Fitur bantuan, bukan blocker |
+| Prioritas | Modul                                       | Alasan                       |
+| --------- | ------------------------------------------- | ---------------------------- |
+| P0        | Login, token, proteksi API                  | Fondasi semua modul          |
+| P0        | Customers, vendors, products, product units | Data prasyarat garansi       |
+| P0        | Warranties                                  | Inti registrasi garansi      |
+| P0        | Claims dan status logs                      | Inti proses layanan          |
+| P1        | Dashboard dan pencarian                     | Pemantauan operasional       |
+| P1        | Laporan                                     | Evaluasi layanan             |
+| P2        | Activity logs                               | Audit tambahan               |
+| P2        | AI classification                           | Fitur bantuan, bukan blocker |
 
 ## 6. Risiko dan Mitigasi
 
-| Risiko | Dampak | Mitigasi |
-|---|---|---|
-| Skema database belum final | Data perlu dimigrasikan ulang | Finalisasi relasi sebelum data produksi |
-| Kode status tidak konsisten | Filter dan laporan salah | Gunakan konstanta/status terpusat |
-| Data serial number ganda | Klaim salah sasaran | Unique constraint dan validasi API |
-| Garansi kedaluwarsa masih diklaim | Kerugian operasional | Validasi tanggal di backend |
-| AI gagal atau lambat | Proses klaim terhambat | AI optional dengan fallback manual |
-| Penghapusan data berelasi | Data histori hilang | Restrict delete dan konfirmasi admin |
-| Token bocor | Akses tidak sah | HTTPS, expiry/revocation, dan review storage |
+| Risiko                            | Dampak                        | Mitigasi                                     |
+| --------------------------------- | ----------------------------- | -------------------------------------------- |
+| Skema database belum final        | Data perlu dimigrasikan ulang | Finalisasi relasi sebelum data produksi      |
+| Kode status tidak konsisten       | Filter dan laporan salah      | Gunakan konstanta/status terpusat            |
+| Data serial number ganda          | Klaim salah sasaran           | Unique constraint dan validasi API           |
+| Garansi kedaluwarsa masih diklaim | Kerugian operasional          | Validasi tanggal di backend                  |
+| AI gagal atau lambat              | Proses klaim terhambat        | AI optional dengan fallback manual           |
+| Penghapusan data berelasi         | Data histori hilang           | Restrict delete dan konfirmasi admin         |
+| Token bocor                       | Akses tidak sah               | HTTPS, expiry/revocation, dan review storage |
 
 ## 7. Definition of Done
 

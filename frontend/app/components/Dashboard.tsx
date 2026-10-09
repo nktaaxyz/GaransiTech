@@ -14,6 +14,7 @@ import {
   logout,
   type DashboardSummary,
 } from "../lib/api";
+import { DashboardSkeleton } from "./LoadingState";
 
 const statusLabels: Record<string, string> = {
   received: "Diterima",
@@ -77,7 +78,7 @@ export default function Dashboard() {
   }
 
   if (isLoading) {
-    return <main className="dashboard-state">Memuat dashboard...</main>;
+    return <DashboardSkeleton />;
   }
 
   return (

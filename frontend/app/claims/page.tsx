@@ -2,8 +2,14 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { createClaim, getClaimsPage, getToken, getWarranties, updateClaimStatus, type Claim, type Warranty, type Paginated } from "../lib/api";
+import { getClaimPhoto, saveClaimPhoto } from "../lib/claimPhotos";
+import { TableSkeleton } from "../components/LoadingState";
+
+const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
@@ -39,6 +45,41 @@ export default function ClaimsPage() {
     const [error, setError] = useState("");
     const [formError, setFormError] = useState("");
     const [isSaving, setIsSaving] = useState(false);
+    const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
+    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+    const [selectedClaimPhoto, setSelectedClaimPhoto] = useState<{ claimCode: string; url: string } | null>(null);
+    const [photoRefresh, setPhotoRefresh] = useState(0);
+    const [photoFeedback, setPhotoFeedback] = useState("");
+
+    useEffect(() => () => {
+        if (photoPreview) URL.revokeObjectURL(photoPreview);
+    }, [photoPreview]);
+
+    useEffect(() => {
+        const claimCode = selectedClaim?.claim_code;
+        if (!claimCode) return;
+
+        let photoUrl: string | null = null;
+        let isCurrent = true;
+
+        getClaimPhoto(claimCode)
+            .then((photo) => {
+                if (isCurrent && photo) {
+                    photoUrl = URL.createObjectURL(photo.file);
+                    setSelectedClaimPhoto({ claimCode, url: photoUrl });
+                }
+            })
+            .catch((requestError: unknown) => {
+                if (isCurrent) {
+                    setPhotoFeedback(requestError instanceof Error ? requestError.message : "Foto klaim gagal dibaca.");
+                }
+            });
+
+        return () => {
+            isCurrent = false;
+            if (photoUrl) URL.revokeObjectURL(photoUrl);
+        };
+    }, [selectedClaim?.claim_code, photoRefresh]);
 
     useEffect(() => {
         if (!getToken()) {
@@ -81,6 +122,34 @@ export default function ClaimsPage() {
         setPagination({ current_page: response.current_page, last_page: response.last_page, total: response.total });
     }
 
+    function validatePhoto(file: File): string | null {
+        if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
+            return "Pilih foto berformat JPG, PNG, atau WEBP.";
+        }
+        if (file.size > MAX_PHOTO_SIZE) {
+            return "Ukuran foto maksimal 5 MB.";
+        }
+        return null;
+    }
+
+    async function savePhotoForClaim(claimCode: string, file: File): Promise<void> {
+        const validationMessage = validatePhoto(file);
+        if (validationMessage) throw new Error(validationMessage);
+
+        await saveClaimPhoto(claimCode, file);
+        setPhotoFeedback("Foto tersimpan di browser ini dan tidak diunggah ke server.");
+        if (selectedClaim?.claim_code === claimCode) {
+            setPhotoRefresh((current) => current + 1);
+        }
+    }
+
+    function closeClaimForm() {
+        setIsFormOpen(false);
+        setSelectedPhoto(null);
+        setPhotoPreview(null);
+        setFormError("");
+    }
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
         setIsSaving(true);
@@ -89,15 +158,24 @@ export default function ClaimsPage() {
         const formData = new FormData(form);
 
         try {
-            await createClaim({
+            const createdClaim = await createClaim({
                 warranty_id: Number(formData.get("warranty_id")),
                 claim_date: String(formData.get("claim_date")),
                 damage_description: String(formData.get("damage_description")),
                 note: String(formData.get("note") || ""),
             });
+            if (selectedPhoto) {
+                try {
+                    await savePhotoForClaim(createdClaim.claim_code, selectedPhoto);
+                } catch (photoError) {
+                    setPhotoFeedback(
+                        `Klaim berhasil dicatat, tetapi foto gagal disimpan: ${photoError instanceof Error ? photoError.message : "terjadi kesalahan."}`,
+                    );
+                }
+            }
             setPage(1);
             await refreshClaims(1);
-            setIsFormOpen(false);
+            closeClaimForm();
             form.reset();
         } catch (requestError) {
             setFormError(requestError instanceof Error ? requestError.message : "Klaim tidak dapat disimpan.");
@@ -159,12 +237,13 @@ export default function ClaimsPage() {
                         <h1>Klaim garansi</h1>
                         <p>Kelola keluhan pelanggan dan pantau progres penanganannya.</p>
                     </div>
-                    <button className="primary-action" type="button" onClick={() => setIsFormOpen(true)}>+ Catat klaim</button>
+                    <button className="primary-action" type="button" onClick={() => { setFormError(""); setPhotoFeedback(""); setIsFormOpen(true); }}>+ Catat klaim</button>
                 </div>
             </header>
 
             <section className="claims-page-content">
                 {error && <p className="form-error" role="alert">{error}</p>}
+                {photoFeedback && !selectedClaim && <p className="photo-feedback" role="status">{photoFeedback}</p>}
                 <div className="claim-overview">
                     <div><span>Total klaim</span><strong>{claims.length}</strong></div>
                     <div><span>Menunggu tindakan</span><strong>{countByStatus("received")}</strong></div>
@@ -187,7 +266,7 @@ export default function ClaimsPage() {
                     </div>
 
                     <div className="claims-table-wrap">
-                        {isLoading ? <div className="empty-state"><strong>Memuat data klaim...</strong></div> : <table className="claims-table claims-page-table">
+                        {isLoading ? <TableSkeleton rows={5} columns={6} /> : <table className="claims-table claims-page-table">
                             <thead><tr><th>Klaim</th><th>Pelanggan</th><th>Produk / serial</th><th>Tanggal</th><th>Status</th><th /></tr></thead>
                             <tbody>{filteredClaims.map((claim: Claim) => (
                                 <tr key={claim.id}>
@@ -206,9 +285,9 @@ export default function ClaimsPage() {
                 </section>
             </section>
 
-            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => setIsFormOpen(false)}>
+            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => { if (!isSaving) closeClaimForm(); }}>
                 <section className="claim-modal" role="dialog" aria-modal="true" aria-labelledby="claim-modal-title" onClick={(event) => event.stopPropagation()}>
-                    <button className="modal-close" type="button" onClick={() => setIsFormOpen(false)} aria-label="Tutup">×</button>
+                    <button className="modal-close" type="button" onClick={closeClaimForm} disabled={isSaving} aria-label="Tutup">×</button>
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
                     <p className="modal-description">{warranties.length > 0 ? "Pilih garansi yang masa berlakunya mencakup tanggal klaim." : <>Belum ada garansi yang berlaku. <Link href="/warranties">Daftarkan garansi</Link> terlebih dahulu.</>}</p>
@@ -217,8 +296,26 @@ export default function ClaimsPage() {
                         <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi yang berlaku</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}{warranty.status === "expiring" ? " (Segera berakhir)" : ""}</option>)}</select></label>
                         <label>Tanggal klaim<input name="claim_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
                         <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan keluhan pelanggan..." rows={4} required /></label>
+                        <label>Foto bukti kerusakan <span className="photo-upload-hint">Opsional · JPG, PNG, atau WEBP · maksimal 5 MB</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                            const file = event.target.files?.[0] || null;
+                            if (file) {
+                                const validationMessage = validatePhoto(file);
+                                if (validationMessage) {
+                                    setFormError(validationMessage);
+                                    event.target.value = "";
+                                    setSelectedPhoto(null);
+                                    setPhotoPreview(null);
+                                    return;
+                                }
+                            }
+                            setFormError("");
+                            setSelectedPhoto(file);
+                            setPhotoPreview(file ? URL.createObjectURL(file) : null);
+                        }} /></label>
+                                {photoPreview && <div className="claim-photo-preview-wrap"><Image className="claim-photo-preview" src={photoPreview} alt="Pratinjau foto bukti kerusakan" width={640} height={420} unoptimized /><button className="secondary-action" type="button" onClick={() => { setSelectedPhoto(null); setPhotoPreview(null); }}>Hapus foto</button></div>}
+                        <p className="photo-storage-note">Foto disimpan hanya di browser ini; tidak masuk database/server dan tidak tersedia di perangkat lain.</p>
                         <label>Catatan awal<textarea name="note" placeholder="Catatan tambahan (opsional)" rows={3} /></label>
-                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={() => setIsFormOpen(false)}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
+                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
                     </form>
                 </section>
             </div>}
@@ -235,6 +332,14 @@ export default function ClaimsPage() {
                         <div><small>Tanggal klaim</small><strong>{new Date(selectedClaim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong></div>
                     </div>
                     <div className="claim-detail-note"><small>Deskripsi kerusakan</small><p>{selectedClaim.damage_description || "Belum ada deskripsi kerusakan."}</p></div>
+                    <div className="claim-detail-photo"><small>Foto bukti kerusakan</small>{selectedClaimPhoto?.claimCode === selectedClaim.claim_code ? <a href={selectedClaimPhoto.url} target="_blank" rel="noreferrer"><Image src={selectedClaimPhoto.url} alt={`Foto bukti klaim ${selectedClaim.claim_code}`} width={720} height={480} unoptimized /></a> : <p>Belum ada foto bukti yang tersimpan di browser ini.</p>}{photoFeedback && <p className="photo-feedback" role="status">{photoFeedback}</p>}<label className="claim-photo-change">Tambah atau ganti foto<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (!file) return;
+                        event.target.value = "";
+                        savePhotoForClaim(selectedClaim.claim_code, file).catch((photoError: unknown) => {
+                            setPhotoFeedback(photoError instanceof Error ? photoError.message : "Foto gagal disimpan.");
+                        });
+                    }} /></label><span className="photo-storage-note">Foto lokal untuk browser ini saja; tidak dikirim ke server.</span></div>
                     {selectedClaim.note && <div className="claim-detail-note"><small>Catatan</small><p>{selectedClaim.note}</p></div>}
                     <section className="claim-timeline" aria-label="Riwayat status klaim">
                         <div className="section-heading"><div><p className="dashboard-kicker">RIWAYAT</p><h3>Perjalanan klaim</h3></div></div>
