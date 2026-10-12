@@ -54,6 +54,21 @@ In order to ensure that the Laravel community is welcoming to all, please review
 
 If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
 
+## Local audio transcription
+
+`POST /api/claims/transcribe` accepts an authenticated multipart upload with an `audio` field and returns `{"text":"...","language":"id"}`. Audio is processed locally; it is not sent to an external AI service. Supported uploads are FLAC, MP3, M4A, OGG, WAV, and WebM, up to 20 MB. The endpoint is limited to three requests per minute.
+
+The backend server must have FFmpeg and a `whisper.cpp` `whisper-cli` executable installed, along with a multilingual Whisper model. Set these paths in `backend/.env`:
+
+```dotenv
+LOCAL_WHISPER_BINARY='C:\path\to\whisper-cli.exe'
+LOCAL_WHISPER_FFMPEG='C:\path\to\ffmpeg.exe'
+LOCAL_WHISPER_MODEL='C:\path\to\ggml-base.bin'
+LOCAL_WHISPER_TIMEOUT=180
+```
+
+Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The frontend form is not connected to this endpoint yet.
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

@@ -1,16 +1,16 @@
 <?php
 
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\AuthController;
 use App\Http\Controllers\ActivityLogController;
+use App\Http\Controllers\AudioTranscriptionController;
+use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\ProductController;
 use App\Http\Controllers\ProductUnitController;
 use App\Http\Controllers\VendorController;
-use App\Http\Controllers\WarrantyController;
 use App\Http\Controllers\WarrantyClaimController;
+use App\Http\Controllers\WarrantyController;
+use Illuminate\Support\Facades\Route;
 
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login'])->middleware('throttle:login');
@@ -30,4 +30,6 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('warranties', WarrantyController::class);
     Route::apiResource('claims', WarrantyClaimController::class)->only(['index', 'store', 'show', 'update']);
     Route::patch('claims/{claim}/status', [WarrantyClaimController::class, 'updateStatus']);
+    Route::post('claims/transcribe', AudioTranscriptionController::class)
+        ->middleware('throttle:3,1');
 });

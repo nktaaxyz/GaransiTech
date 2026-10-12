@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+    'local_whisper' => [
+        'binary' => env('LOCAL_WHISPER_BINARY', 'whisper-cli'),
+        'ffmpeg_binary' => env('LOCAL_WHISPER_FFMPEG', 'ffmpeg'),
+        'model' => env('LOCAL_WHISPER_MODEL'),
+        'timeout' => (int) env('LOCAL_WHISPER_TIMEOUT', 180),
+    ],
+
 ];
