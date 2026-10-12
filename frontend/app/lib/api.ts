@@ -300,11 +300,17 @@ export function createClaim(input: {
   warranty_id: number;
   claim_date: string;
   damage_description: string;
-  note?: string;
 }): Promise<Claim> {
   return request<Claim>("/claims", {
     method: "POST",
     body: JSON.stringify(input),
+  });
+}
+
+export function summarizeClaimTranscript(transcript: string): Promise<{ points: string[] }> {
+  return request<{ points: string[] }>("/claims/summarize", {
+    method: "POST",
+    body: JSON.stringify({ transcript }),
   });
 }
 

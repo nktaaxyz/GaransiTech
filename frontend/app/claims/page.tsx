@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createClaim, getClaimsPage, getToken, getWarranties, updateClaimStatus, type Claim, type Warranty, type Paginated } from "../lib/api";
+import { createClaim, getClaimsPage, getToken, getWarranties, summarizeClaimTranscript, updateClaimStatus, type Claim, type Warranty, type Paginated } from "../lib/api";
 import { getClaimPhoto, saveClaimPhoto } from "../lib/claimPhotos";
 import { TableSkeleton } from "../components/LoadingState";
 
@@ -27,6 +27,36 @@ const nextStatusOptions: Record<string, string[]> = {
 
 const statusOptions = ["all", "received", "forwarded_to_vendor", "processing_by_vendor", "completed", "rejected"];
 
+type SpeechRecognitionConstructor = new () => SpeechRecognitionController;
+
+interface SpeechRecognitionController {
+    lang: string;
+    continuous: boolean;
+    interimResults: boolean;
+    onresult: ((event: SpeechRecognitionResultEvent) => void) | null;
+    onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
+    onend: (() => void) | null;
+    start(): void;
+    stop(): void;
+}
+
+interface SpeechRecognitionResultEvent {
+    resultIndex: number;
+    results: ArrayLike<{
+        isFinal: boolean;
+        0: { transcript: string };
+    }>;
+}
+
+interface SpeechRecognitionErrorEvent {
+    error: string;
+}
+
+type SpeechRecognitionWindow = Window & {
+    SpeechRecognition?: SpeechRecognitionConstructor;
+    webkitSpeechRecognition?: SpeechRecognitionConstructor;
+};
+
 export default function ClaimsPage() {
     const router = useRouter();
     const [claims, setClaims] = useState<Claim[]>([]);
@@ -46,14 +76,126 @@ export default function ClaimsPage() {
     const [formError, setFormError] = useState("");
     const [isSaving, setIsSaving] = useState(false);
     const [selectedPhoto, setSelectedPhoto] = useState<File | null>(null);
-    const [photoPreview, setPhotoPreview] = useState<string | null>(null);
     const [selectedClaimPhoto, setSelectedClaimPhoto] = useState<{ claimCode: string; url: string } | null>(null);
     const [photoRefresh, setPhotoRefresh] = useState(0);
     const [photoFeedback, setPhotoFeedback] = useState("");
+    const photoInputRef = useRef<HTMLInputElement | null>(null);
+    const [damageDescription, setDamageDescription] = useState("");
+    const [speechTranscript, setSpeechTranscript] = useState("");
+    const [isSummarizing, setIsSummarizing] = useState(false);
+    const [aiError, setAiError] = useState("");
+    const [isRecording, setIsRecording] = useState(false);
+    const [voiceError, setVoiceError] = useState("");
+    const [interimTranscript, setInterimTranscript] = useState("");
+    const speechRecognitionRef = useRef<SpeechRecognitionController | null>(null);
+
+    function stopVoiceRecognition() {
+        const recognition = speechRecognitionRef.current;
+        if (!recognition) return;
+
+        speechRecognitionRef.current = null;
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.stop();
+        setIsRecording(false);
+        setInterimTranscript("");
+    }
+
+    function toggleVoiceRecognition() {
+        if (speechRecognitionRef.current) {
+            stopVoiceRecognition();
+            return;
+        }
+
+        const SpeechRecognition = (window as SpeechRecognitionWindow).SpeechRecognition
+            || (window as SpeechRecognitionWindow).webkitSpeechRecognition;
+        if (!SpeechRecognition) {
+            setVoiceError("Browser ini belum mendukung pengenalan suara. Silakan isi deskripsi secara manual atau gunakan Chrome/Edge.");
+            return;
+        }
+
+        const recognition = new SpeechRecognition();
+        recognition.lang = "id-ID";
+        recognition.continuous = true;
+        recognition.interimResults = true;
+        recognition.onresult = (event) => {
+            const finalSegments: string[] = [];
+            const interimLines: string[] = [];
+
+            for (let index = event.resultIndex; index < event.results.length; index += 1) {
+                const line = event.results[index][0].transcript.trim();
+                if (!line) continue;
+                if (event.results[index].isFinal) finalSegments.push(line);
+                else interimLines.push(line);
+            }
+
+            if (finalSegments.length > 0) {
+                setSpeechTranscript((current) => [current.trim(), finalSegments.join(" ")].filter(Boolean).join(" "));
+            }
+            setInterimTranscript(interimLines.join(" "));
+        };
+        recognition.onerror = (event) => {
+            const messages: Record<string, string> = {
+                "not-allowed": "Izin mikrofon ditolak. Izinkan akses mikrofon di browser atau isi deskripsi secara manual.",
+                "service-not-allowed": "Layanan pengenalan suara tidak diizinkan. Silakan isi deskripsi secara manual.",
+                "audio-capture": "Mikrofon tidak ditemukan atau sedang digunakan aplikasi lain.",
+                "no-speech": "Suara belum terdeteksi. Coba bicara lebih dekat ke mikrofon.",
+                network: "Layanan pengenalan suara tidak dapat dijangkau. Periksa koneksi internet lalu coba lagi.",
+            };
+            setVoiceError(messages[event.error] || "Perekaman suara gagal. Silakan coba lagi atau isi deskripsi secara manual.");
+            speechRecognitionRef.current = null;
+            setIsRecording(false);
+            setInterimTranscript("");
+        };
+        recognition.onend = () => {
+            speechRecognitionRef.current = null;
+            setIsRecording(false);
+            setInterimTranscript("");
+        };
+
+        try {
+            recognition.start();
+            speechRecognitionRef.current = recognition;
+            setVoiceError("");
+            setInterimTranscript("");
+            setIsRecording(true);
+        } catch {
+            setVoiceError("Perekaman tidak dapat dimulai. Periksa izin mikrofon dan coba lagi.");
+        }
+    }
+
+    async function handleSummarizeTranscript() {
+        const transcript = speechTranscript.trim();
+        if (!transcript) {
+            setAiError("Rekam atau tulis transkrip keluhan terlebih dahulu.");
+            return;
+        }
+
+        setIsSummarizing(true);
+        setAiError("");
+        try {
+            const result = await summarizeClaimTranscript(transcript);
+            if (result.points.length === 0) {
+                throw new Error("AI belum menghasilkan poin. Coba gunakan transkrip yang lebih jelas.");
+            }
+            setDamageDescription(result.points.map((point) => `• ${point}`).join("\n"));
+        } catch (requestError) {
+            setAiError(requestError instanceof Error ? requestError.message : "Poin keluhan belum dapat dibuat.");
+        } finally {
+            setIsSummarizing(false);
+        }
+    }
 
     useEffect(() => () => {
-        if (photoPreview) URL.revokeObjectURL(photoPreview);
-    }, [photoPreview]);
+        const recognition = speechRecognitionRef.current;
+        if (!recognition) return;
+        speechRecognitionRef.current = null;
+        recognition.onresult = null;
+        recognition.onerror = null;
+        recognition.onend = null;
+        recognition.stop();
+    }, []);
 
     useEffect(() => {
         const claimCode = selectedClaim?.claim_code;
@@ -144,14 +286,23 @@ export default function ClaimsPage() {
     }
 
     function closeClaimForm() {
+        stopVoiceRecognition();
         setIsFormOpen(false);
         setSelectedPhoto(null);
-        setPhotoPreview(null);
+        if (photoInputRef.current) photoInputRef.current.value = "";
         setFormError("");
+        setVoiceError("");
+        setDamageDescription("");
+        setSpeechTranscript("");
+        setAiError("");
     }
 
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
+        if (speechRecognitionRef.current) {
+            setVoiceError("Selesaikan perekaman sebelum menyimpan klaim.");
+            return;
+        }
         setIsSaving(true);
         setFormError("");
         const form = event.currentTarget;
@@ -162,7 +313,6 @@ export default function ClaimsPage() {
                 warranty_id: Number(formData.get("warranty_id")),
                 claim_date: String(formData.get("claim_date")),
                 damage_description: String(formData.get("damage_description")),
-                note: String(formData.get("note") || ""),
             });
             if (selectedPhoto) {
                 try {
@@ -285,37 +435,60 @@ export default function ClaimsPage() {
                 </section>
             </section>
 
-            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => { if (!isSaving) closeClaimForm(); }}>
+            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => { if (!isSaving && !isSummarizing) closeClaimForm(); }}>
                 <section className="claim-modal" role="dialog" aria-modal="true" aria-labelledby="claim-modal-title" onClick={(event) => event.stopPropagation()}>
-                    <button className="modal-close" type="button" onClick={closeClaimForm} disabled={isSaving} aria-label="Tutup">×</button>
+                    <button className="modal-close" type="button" onClick={closeClaimForm} disabled={isSaving || isSummarizing} aria-label="Tutup">×</button>
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
                     <p className="modal-description">{warranties.length > 0 ? "Pilih garansi yang masa berlakunya mencakup tanggal klaim." : <>Belum ada garansi yang berlaku. <Link href="/warranties">Daftarkan garansi</Link> terlebih dahulu.</>}</p>
                     {formError && <p className="form-error" role="alert">{formError}</p>}
+                    {voiceError && <p className="form-error" role="alert">{voiceError}</p>}
+                    {aiError && <p className="form-error" role="alert">{aiError}</p>}
                     <form onSubmit={handleSubmit}>
                         <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi yang berlaku</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}{warranty.status === "expiring" ? " (Segera berakhir)" : ""}</option>)}</select></label>
                         <label>Tanggal klaim<input name="claim_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
-                        <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan keluhan pelanggan..." rows={4} required /></label>
-                        <label>Foto bukti kerusakan <span className="photo-upload-hint">Opsional · JPG, PNG, atau WEBP · maksimal 5 MB</span><input name="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
-                            const file = event.target.files?.[0] || null;
-                            if (file) {
-                                const validationMessage = validatePhoto(file);
-                                if (validationMessage) {
-                                    setFormError(validationMessage);
-                                    event.target.value = "";
-                                    setSelectedPhoto(null);
-                                    setPhotoPreview(null);
-                                    return;
-                                }
-                            }
-                            setFormError("");
-                            setSelectedPhoto(file);
-                            setPhotoPreview(file ? URL.createObjectURL(file) : null);
-                        }} /></label>
-                                {photoPreview && <div className="claim-photo-preview-wrap"><Image className="claim-photo-preview" src={photoPreview} alt="Pratinjau foto bukti kerusakan" width={640} height={420} unoptimized /><button className="secondary-action" type="button" onClick={() => { setSelectedPhoto(null); setPhotoPreview(null); }}>Hapus foto</button></div>}
-                        <p className="photo-storage-note">Foto disimpan hanya di browser ini; tidak masuk database/server dan tidak tersedia di perangkat lain.</p>
-                        <label>Catatan awal<textarea name="note" placeholder="Catatan tambahan (opsional)" rows={3} /></label>
-                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
+                        <section className="voice-entry" aria-label="Rekam dan susun keluhan">
+                            <label>Transkrip keluhan<textarea value={speechTranscript} onChange={(event) => setSpeechTranscript(event.target.value)} placeholder="Hasil rekaman akan muncul di sini dan bisa diedit." rows={3} /></label>
+                            <div className="voice-entry-actions">
+                                <button className={`voice-record-button${isRecording ? " is-recording" : ""}`} type="button" onClick={toggleVoiceRecognition} disabled={isSaving}>
+                                    <span className="voice-record-indicator" aria-hidden="true" />
+                                    {isRecording ? "Selesai merekam" : "Rekam keluhan"}
+                                </button>
+                                <button className="ai-draft-button" type="button" disabled={!speechTranscript.trim() || isRecording || isSaving || isSummarizing} onClick={handleSummarizeTranscript}>{isSummarizing ? "AI sedang menyusun..." : "✦ Buat poin otomatis"}</button>
+                            </div>
+                            <p className="voice-entry-hint">Rekam keluhan dalam Bahasa Indonesia, lalu minta AI menyusunnya menjadi poin-poin. Periksa dan edit hasil sebelum menyimpan klaim.</p>
+                            {interimTranscript && <p className="voice-transcript-preview" role="status">Mendengarkan: {interimTranscript}</p>}
+                            <label>Poin keluhan<textarea name="damage_description" placeholder="Hasil susunan AI akan tampil di sini. Kamu juga bisa mengedit poinnya." rows={4} required value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} /></label>
+                        </section>
+                        <section className="photo-upload-section" aria-labelledby="claim-photo-label">
+                            <div className="photo-upload-heading">
+                                <label id="claim-photo-label">Foto bukti kerusakan <span className="photo-upload-hint">Opsional · JPG, PNG, WEBP · maksimal 5 MB</span></label>
+                            </div>
+                            <div className="photo-picker">
+                                <input ref={photoInputRef} className="photo-file-input" id="claim-photo-input" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                                    const file = event.target.files?.[0] || null;
+                                    if (file) {
+                                        const validationMessage = validatePhoto(file);
+                                        if (validationMessage) {
+                                            setFormError(validationMessage);
+                                            event.target.value = "";
+                                            setSelectedPhoto(null);
+                                            return;
+                                        }
+                                    }
+                                    setFormError("");
+                                    setSelectedPhoto(file);
+                                }} />
+                                <div className="photo-picker-toolbar"><span>File lampiran</span><label className="photo-picker-browse" htmlFor="claim-photo-input">{selectedPhoto ? "Ganti file" : "Pilih file"}</label></div>
+                                {selectedPhoto ? <div className="photo-file-row">
+                                    <span className="photo-file-type" aria-hidden="true">IMG</span>
+                                    <span className="photo-picker-filename">{selectedPhoto.name}</span>
+                                    <button className="photo-file-remove" type="button" onClick={() => { setSelectedPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ""; }}>Hapus</button>
+                                </div> : <p className="photo-picker-empty">Belum ada file yang dipilih.</p>}
+                            </div>
+                            <p className="photo-storage-note">Foto tersimpan di browser ini saja; tidak diunggah ke server.</p>
+                        </section>
+                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving || isSummarizing}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || isRecording || isSummarizing || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
                     </form>
                 </section>
             </div>}
@@ -331,15 +504,15 @@ export default function ClaimsPage() {
                         <div><small>Nomor serial</small><strong>{selectedClaim.serial_number || "-"}</strong></div>
                         <div><small>Tanggal klaim</small><strong>{new Date(selectedClaim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong></div>
                     </div>
-                    <div className="claim-detail-note"><small>Deskripsi kerusakan</small><p>{selectedClaim.damage_description || "Belum ada deskripsi kerusakan."}</p></div>
-                    <div className="claim-detail-photo"><small>Foto bukti kerusakan</small>{selectedClaimPhoto?.claimCode === selectedClaim.claim_code ? <a href={selectedClaimPhoto.url} target="_blank" rel="noreferrer"><Image src={selectedClaimPhoto.url} alt={`Foto bukti klaim ${selectedClaim.claim_code}`} width={720} height={480} unoptimized /></a> : <p>Belum ada foto bukti yang tersimpan di browser ini.</p>}{photoFeedback && <p className="photo-feedback" role="status">{photoFeedback}</p>}<label className="claim-photo-change">Tambah atau ganti foto<input type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                    <div className="claim-detail-note"><small>Poin keluhan</small><p>{selectedClaim.damage_description || "Belum ada poin keluhan."}</p></div>
+                    <div className="claim-detail-photo"><small>Foto bukti kerusakan</small>{selectedClaimPhoto?.claimCode === selectedClaim.claim_code ? <a href={selectedClaimPhoto.url} target="_blank" rel="noreferrer"><Image src={selectedClaimPhoto.url} alt={`Foto bukti klaim ${selectedClaim.claim_code}`} width={720} height={480} unoptimized /></a> : <p>Belum ada foto bukti yang tersimpan di browser ini.</p>}{photoFeedback && <p className="photo-feedback" role="status">{photoFeedback}</p>}<div className="photo-picker detail-photo-picker"><input className="photo-file-input" id={`detail-photo-${selectedClaim.id}`} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (!file) return;
                         event.target.value = "";
                         savePhotoForClaim(selectedClaim.claim_code, file).catch((photoError: unknown) => {
                             setPhotoFeedback(photoError instanceof Error ? photoError.message : "Foto gagal disimpan.");
                         });
-                    }} /></label><span className="photo-storage-note">Foto lokal untuk browser ini saja; tidak dikirim ke server.</span></div>
+                    }} /><label className="photo-picker-label" htmlFor={`detail-photo-${selectedClaim.id}`}><span className="photo-picker-browse">Pilih file</span><span className="photo-picker-filename">JPG, PNG, WEBP · maks 5 MB</span></label></div><span className="photo-storage-note">Foto lokal untuk browser ini saja; tidak dikirim ke server.</span></div>
                     {selectedClaim.note && <div className="claim-detail-note"><small>Catatan</small><p>{selectedClaim.note}</p></div>}
                     <section className="claim-timeline" aria-label="Riwayat status klaim">
                         <div className="section-heading"><div><p className="dashboard-kicker">RIWAYAT</p><h3>Perjalanan klaim</h3></div></div>
