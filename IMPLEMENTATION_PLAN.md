@@ -19,7 +19,7 @@ Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis ya
 - [ ] Tahap 4 — Registrasi dan pemantauan garansi.
 - [ ] Tahap 5 — Klaim dan riwayat penanganan lengkap.
 - [ ] Tahap 6 — Dashboard, pencarian, dan laporan.
-- [ ] Tahap 7 — Klasifikasi AI sebagai rekomendasi.
+- [ ] Tahap 7 — Transkripsi suara untuk deskripsi kerusakan.
 - [ ] Tahap 8 — Audit aktivitas dan keamanan lanjutan.
 - [ ] Tahap 9 — Pengujian integrasi dan rilis.
 
@@ -37,7 +37,7 @@ Dokumen ini menerjemahkan [PRD](./PRD.md) menjadi rencana implementasi teknis ya
 - Frontend Next.js hanya menangani tampilan, interaksi form, dan konsumsi REST API.
 - Perubahan database dilakukan menggunakan migration Laravel.
 - Setiap tahap harus diuji sebelum masuk ke tahap berikutnya.
-- AI bersifat opsional dan hanya memberikan rekomendasi; keputusan tetap berada pada admin.
+- Transkripsi suara bersifat opsional; admin memeriksa dan mengoreksi deskripsi sebelum menyimpan.
 
 ## 2. Kondisi Awal
 
@@ -386,25 +386,23 @@ Frontend:
 - [ ] Filter periode laporan.
 - [ ] Pencarian dengan debounce dan pagination.
 
-## Tahap 7 — Klasifikasi AI sebagai rekomendasi
+## Tahap 7 — Transkripsi suara untuk deskripsi kerusakan
 
-**Tujuan:** membantu admin mengelompokkan keluhan tanpa mengambil keputusan otomatis.
+**Tujuan:** menyediakan transkripsi audio lokal di backend untuk membantu admin mengisi deskripsi kerusakan.
 
 Pekerjaan:
 
-- [ ] Definisikan format input deskripsi kerusakan.
-- [ ] Definisikan output kategori: `hardware`, `software`, `network`.
-- [ ] Definisikan output urgensi.
-- [ ] Simpan hasil AI dan hasil koreksi admin secara terpisah.
-- [ ] Tampilkan indikator bahwa hasil AI adalah rekomendasi.
-- [ ] Tangani timeout, error, dan layanan AI tidak tersedia.
-- [ ] Pastikan klaim tetap dapat dibuat tanpa AI.
+- [x] Tambahkan endpoint transkripsi audio yang dilindungi autentikasi.
+- [x] Proses audio melalui FFmpeg dan Whisper.cpp lokal dengan bahasa `id`.
+- [x] Batasi format, ukuran unggahan, waktu proses, dan frekuensi permintaan.
+- [ ] Siapkan binary Whisper.cpp, model bahasa multibahasa, dan FFmpeg pada server.
+- [ ] Hubungkan pengambilan dan pengiriman audio dari form klaim untuk mengisi deskripsi klaim.
 
 Kriteria selesai:
 
-- Hasil AI tidak langsung mengubah keputusan klaim.
-- Admin dapat mengoreksi rekomendasi.
-- Kegagalan AI tidak memblokir workflow klaim.
+- Endpoint mengembalikan teks transkripsi tanpa membuat atau mengubah klaim secara otomatis.
+- Audio diproses secara lokal dan file sementara dihapus setelah proses selesai.
+- Kegagalan transkripsi tidak mengubah workflow pencatatan klaim.
 
 ## Tahap 8 — Audit aktivitas dan keamanan
 

@@ -30,7 +30,7 @@ GaransiTech bukan aplikasi kasir dan bukan sistem pencatatan seluruh transaksi p
 3. Membantu admin mencatat dan memantau proses klaim sampai selesai.
 4. Menyimpan riwayat perubahan status dan catatan penanganan klaim.
 5. Menyediakan pencarian dan ringkasan untuk membantu pekerjaan admin.
-6. Menyediakan rekomendasi kategori dan urgensi keluhan menggunakan AI jika fitur tersebut sudah diaktifkan.
+6. Membantu admin mengisi deskripsi kerusakan melalui transkripsi audio berbahasa Indonesia.
 
 ## 4. Pengguna dan Hak Akses
 
@@ -64,7 +64,7 @@ Pelanggan dan vendor tidak memiliki akun serta tidak login ke aplikasi.
 - Manajemen klaim dan riwayat statusnya.
 - Pencarian data.
 - Ringkasan dashboard dan laporan dasar.
-- Rekomendasi kategori/urgensi keluhan berbasis AI sebagai bantuan admin.
+- Transkripsi audio berbahasa Indonesia menjadi teks untuk deskripsi kerusakan.
 
 ### Tidak termasuk
 
@@ -220,13 +220,12 @@ name, contact_person, phone, email
 - Admin dapat memperbarui status, catatan, referensi vendor, dan tanggal penyelesaian.
 - Sistem menyimpan setiap perubahan status dalam riwayat.
 
-### 8.7 Klasifikasi AI
+### 8.7 Transkripsi suara untuk deskripsi kerusakan
 
-- Sistem dapat mengirim deskripsi keluhan untuk mendapatkan rekomendasi.
-- Kategori rekomendasi: hardware, software, atau jaringan.
-- Tingkat urgensi menjadi rekomendasi, bukan keputusan otomatis.
-- Admin dapat mengoreksi hasil AI.
-- Klaim tetap dapat diproses jika layanan AI tidak tersedia.
+- Admin dapat mendiktekan deskripsi kerusakan dalam bahasa Indonesia.
+- Hasil transkripsi mengisi kolom deskripsi kerusakan dan tetap dapat diedit sebelum disimpan.
+- Audio diproses oleh model pengenalan suara lokal di server aplikasi dan tidak dikirim ke layanan AI pihak ketiga.
+- Admin tetap dapat mengetik atau mengoreksi deskripsi jika transkripsi gagal.
 
 ### 8.8 Pencarian, Dashboard, dan Laporan
 
@@ -245,7 +244,7 @@ name, contact_person, phone, email
 6. Klaim harus mengacu pada unit/garansi yang valid.
 7. Sistem harus memberi peringatan jika garansi sudah berakhir.
 8. Data yang masih menjadi referensi data garansi atau klaim tidak boleh dihapus sembarangan.
-9. AI hanya memberi rekomendasi; admin mengambil keputusan akhir.
+9. Admin harus memeriksa dan dapat mengoreksi hasil transkripsi sebelum menyimpan klaim.
 10. Perubahan status klaim harus meninggalkan catatan riwayat.
 
 ## 10. Rancangan Entitas
