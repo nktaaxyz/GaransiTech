@@ -4,6 +4,7 @@ import { FormEvent, useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createVendor, deleteVendor, getToken, getVendors, updateVendor, type Vendor } from "../lib/api";
+import { TableSkeleton } from "../components/LoadingState";
 
 export default function VendorsPage() {
     const router = useRouter();
@@ -78,7 +79,7 @@ export default function VendorsPage() {
                 <section className="claims-list-panel">
                     <div className="claims-list-toolbar"><div><h2>Semua vendor</h2><span>{vendors.length} data ditemukan</span></div></div>
                     <div className="claims-table-wrap">
-                        {isLoading ? <div className="empty-state"><strong>Memuat vendor...</strong></div> : vendors.length === 0 ? <div className="empty-state"><strong>Belum ada vendor</strong><span>Tambahkan vendor sebelum membuat produk.</span></div> : (
+                        {isLoading ? <TableSkeleton rows={5} columns={5} /> : vendors.length === 0 ? <div className="empty-state"><strong>Belum ada vendor</strong><span>Tambahkan vendor sebelum membuat produk.</span></div> : (
                             <table className="claims-table claims-page-table"><thead><tr><th>Nama</th><th>Kontak</th><th>Telepon</th><th>Produk</th><th /></tr></thead>
                                 <tbody>{vendors.map((vendor) => <tr key={vendor.id}><td><strong>{vendor.name}</strong></td><td>{vendor.contact_person || "-"}</td><td>{vendor.phone || "-"}</td><td>{vendor.products_count ?? 0}</td><td><button className="table-action" type="button" onClick={() => { setEditingVendor(vendor); setIsFormOpen(true); }}>Edit</button><button className="table-action table-action-danger" type="button" onClick={() => handleDelete(vendor)}>Hapus</button></td></tr>)}</tbody>
                             </table>

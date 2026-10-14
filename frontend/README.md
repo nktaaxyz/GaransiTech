@@ -8,6 +8,7 @@ Frontend aplikasi GaransiTech yang dibangun dengan Next.js dan TypeScript.
 - Manajemen pelanggan, vendor, produk, dan unit produk
 - Kelola masa berlaku garansi
 - Proses klaim garansi dan update status
+- Lampiran foto bukti kerusakan yang disimpan lokal di browser admin
 - UI admin yang responsif untuk desktop dan mobile
 
 ## Persiapan
@@ -55,3 +56,5 @@ Jika perlu, buat file `.env.local` dengan contoh:
 ```bash
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
+
+Foto bukti klaim saat ini hanya disimpan di IndexedDB browser yang digunakan admin. Foto tidak dikirim ke backend, tidak tersinkron antarperangkat, dan dapat hilang jika data browser dihapus. Format yang didukung JPG, PNG, dan WEBP dengan ukuran maksimal 5 MB.
