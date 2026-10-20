@@ -655,6 +655,7 @@ a {
 }
 .nav-item {
   display: flex;
+  align-items: center;
   gap: 12px;
   padding: 12px;
   border-left: 2px solid transparent;
@@ -662,16 +663,21 @@ a {
   text-decoration: none;
   font-size: 13px;
 }
-.nav-item span {
-  width: 22px;
+.nav-icon {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 18px;
   color: #6684b5;
-  font-size: 10px;
 }
 .nav-item:hover,
 .nav-item.active {
   border-color: #67a1ff;
   background: #ffffff0d;
   color: #fff;
+}
+.nav-item:hover .nav-icon,
+.nav-item.active .nav-icon {
+  color: #9dc2ff;
 }
 .topbar-account {
   position: absolute;
@@ -1487,7 +1493,9 @@ a {
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .voice-record-button:hover:not(:disabled) {
   border-color: #9bbaf0;
@@ -1507,7 +1515,9 @@ a {
   cursor: pointer;
   font-size: 11px;
   font-weight: 700;
-  transition: background 0.15s ease, border-color 0.15s ease;
+  transition:
+    background 0.15s ease,
+    border-color 0.15s ease;
 }
 .ai-draft-button:hover:not(:disabled) {
   border-color: #b8a9df;

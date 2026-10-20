@@ -24,6 +24,38 @@ const statusLabels: Record<string, string> = {
   rejected: "Ditolak",
 };
 
+const navItems = [
+  { href: "/", label: "Ringkasan", icon: "overview" },
+  { href: "/customers", label: "Pelanggan", icon: "customers" },
+  { href: "/vendors", label: "Vendor", icon: "vendors" },
+  { href: "/products", label: "Produk", icon: "products" },
+  { href: "/product-units", label: "Unit produk", icon: "units" },
+  { href: "/warranties", label: "Garansi", icon: "warranty" },
+  { href: "/claims", label: "Klaim garansi", icon: "claims" },
+  { href: "/reports", label: "Laporan", icon: "reports" },
+  { href: "/#activity", label: "Aktivitas", icon: "activity" },
+] as const;
+
+const navIconPaths = {
+  overview: <><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></>,
+  customers: <><path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="10" cy="7" r="4" /><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" /></>,
+  vendors: <><path d="M3 10h18" /><path d="M5 10V6l7-3 7 3v4" /><path d="M5 10v10h14V10M9 20v-6h6v6" /><path d="M3 20h18" /></>,
+  products: <><path d="m12 3 9 5-9 5-9-5 9-5Z" /><path d="m3 12 9 5 9-5M3 16l9 5 9-5M12 13v8" /></>,
+  units: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h2m2 0h1m2 0h1M8 15h1m2 0h2m2 0h1M8 18h8" /></>,
+  warranty: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
+  claims: <><path d="M9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>,
+  reports: <><path d="M3 3v18h18" /><path d="M18 17V9m-5 8V5m-5 12v-5" /></>,
+  activity: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
+};
+
+function NavIcon({ name }: { name: (typeof navItems)[number]["icon"] }) {
+  return (
+    <svg className="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {navIconPaths[name]}
+    </svg>
+  );
+}
+
 export default function Dashboard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -86,15 +118,16 @@ export default function Dashboard() {
       <aside className="dashboard-sidebar">
         <div className="dashboard-brand"><span>G</span> GaransiTech</div>
         <nav className="dashboard-nav" aria-label="Navigasi utama">
-          <Link className={`nav-item ${pathname === "/" ? "active" : ""}`} href="/"><span>01</span> Ringkasan</Link>
-          <Link className={`nav-item ${pathname === "/customers" ? "active" : ""}`} href="/customers"><span>02</span> Pelanggan</Link>
-          <Link className={`nav-item ${pathname === "/vendors" ? "active" : ""}`} href="/vendors"><span>03</span> Vendor</Link>
-          <Link className={`nav-item ${pathname === "/products" ? "active" : ""}`} href="/products"><span>04</span> Produk</Link>
-          <Link className={`nav-item ${pathname === "/product-units" ? "active" : ""}`} href="/product-units"><span>05</span> Unit produk</Link>
-          <Link className={`nav-item ${pathname === "/warranties" ? "active" : ""}`} href="/warranties"><span>06</span> Garansi</Link>
-          <Link className={`nav-item ${pathname === "/claims" ? "active" : ""}`} href="/claims"><span>07</span> Klaim garansi</Link>
-          <Link className={`nav-item ${pathname === "/reports" ? "active" : ""}`} href="/reports"><span>08</span> Laporan</Link>
-          <Link className="nav-item" href="/#activity"><span>09</span> Aktivitas</Link>
+          {navItems.map((item) => (
+            <Link
+              className={`nav-item ${pathname === item.href ? "active" : ""}`}
+              href={item.href}
+              key={item.href}
+            >
+              <NavIcon name={item.icon} />
+              {item.label}
+            </Link>
+          ))}
         </nav>
         <button className="sidebar-logout" type="button" onClick={handleLogout}><span aria-hidden="true">↪</span> Keluar</button>
       </aside>
