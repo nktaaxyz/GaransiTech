@@ -22,6 +22,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('/reports/warranties', [DashboardController::class, 'warranties']);
     Route::get('/reports/claims', [DashboardController::class, 'claims']);
+    Route::post('/claims/summarize', [WarrantyClaimController::class, 'summarize']);
 
     Route::apiResource('customers', CustomerController::class);
     Route::apiResource('vendors', VendorController::class);

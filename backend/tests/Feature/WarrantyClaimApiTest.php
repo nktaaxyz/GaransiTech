@@ -49,6 +49,22 @@ class WarrantyClaimApiTest extends TestCase
         ]);
     }
 
+    public function test_claim_transcript_summary_reports_ai_service_as_unavailable_until_configured(): void
+    {
+        $this->postJson('/api/claims/summarize', [
+            'transcript' => 'Pelanggan mengatakan layar laptop berkedip dan mati.',
+        ])->assertStatus(503)
+            ->assertJsonPath('message', 'Layanan AI belum dikonfigurasi.');
+    }
+
+    public function test_claim_transcript_summary_requires_a_transcript(): void
+    {
+        $this->postJson('/api/claims/summarize', [
+            'transcript' => '',
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['transcript']);
+    }
+
     public function test_claim_is_created_from_an_active_warranty(): void
     {
         $warranty = $this->createWarranty();

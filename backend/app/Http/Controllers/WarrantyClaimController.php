@@ -23,6 +23,17 @@ class WarrantyClaimController extends Controller
         'rejected',
     ];
 
+    public function summarize(Request $request): JsonResponse
+    {
+        $request->validate([
+            'transcript' => ['required', 'string', 'max:10000'],
+        ]);
+
+        return response()->json([
+            'message' => 'Layanan AI belum dikonfigurasi.',
+        ], 503);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $search = trim((string) $request->query('search'));

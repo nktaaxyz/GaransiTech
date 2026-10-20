@@ -411,13 +411,15 @@ Kriteria selesai:
 
 Pekerjaan:
 
-- [ ] Sediakan cara untuk merekam suara atau memasukkan rekaman suara.
-- [ ] Ubah suara menjadi teks transkrip berbahasa Indonesia.
+- [x] Sediakan cara untuk merekam suara melalui browser.
+- [x] Ubah suara menjadi teks transkrip berbahasa Indonesia menggunakan pengenal suara browser.
+- [x] Siapkan endpoint autentikasi dan UI untuk meminta pembuatan poin dari transkrip.
 - [ ] Susun isi transkrip menjadi poin-poin yang mudah dibaca.
-- [ ] Izinkan admin meninjau dan mengedit transkrip serta poin-poin sebelum digunakan.
-- [ ] Isi deskripsi kerusakan pada formulir klaim dengan teks yang sudah ditinjau.
-- [ ] Tangani izin mikrofon, suara yang tidak jelas, dan kegagalan transkripsi.
-- [ ] Pastikan klaim tetap dapat dibuat atau diisi manual tanpa fitur suara.
+- [x] Izinkan admin meninjau dan mengedit transkrip sebelum digunakan.
+- [ ] Isi deskripsi klaim dengan poin-poin hasil AI yang sudah ditinjau.
+- [x] Tangani izin mikrofon, suara yang tidak jelas, dan kegagalan transkripsi.
+- [x] Pastikan klaim tetap dapat dibuat atau diisi manual tanpa fitur suara.
+- [ ] Konfigurasikan provider AI agar endpoint dapat menghasilkan poin secara otomatis.
 
 Kriteria selesai:
 
