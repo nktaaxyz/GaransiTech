@@ -67,7 +67,7 @@ LOCAL_WHISPER_MODEL='C:\path\to\ggml-base.bin'
 LOCAL_WHISPER_TIMEOUT=180
 ```
 
-Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The frontend form is not connected to this endpoint yet.
+Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The claim form records audio and sends it to this endpoint when recording stops. The client statement is stored separately from the bullet-formatted damage description. Run `php artisan migrate` to add the `client_statement` column. Automatic bullet formatting does not use an AI summarization service; `/api/claims/summarize` remains unavailable until one is configured.
 
 ## License
 

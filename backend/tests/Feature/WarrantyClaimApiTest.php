@@ -73,6 +73,7 @@ class WarrantyClaimApiTest extends TestCase
             'warranty_id' => $warranty->id,
             'claim_date' => '2026-09-23',
             'damage_description' => 'Layar tidak menyala.',
+            'client_statement' => 'Laptop saya tiba-tiba mati dan tidak bisa dinyalakan.',
         ]);
 
         $response
@@ -83,6 +84,7 @@ class WarrantyClaimApiTest extends TestCase
             ->assertJsonPath('serial_number', 'SN-CLAIM-001')
             ->assertJsonPath('status', 'received')
             ->assertJsonPath('damage_description', 'Layar tidak menyala.')
+            ->assertJsonPath('client_statement', 'Laptop saya tiba-tiba mati dan tidak bisa dinyalakan.')
             ->assertJsonCount(1, 'status_logs');
 
         $this->assertMatchesRegularExpression('/^CLM-20260923-[A-Z0-9]{6}$/', $response->json('claim_code'));

@@ -13,6 +13,7 @@ export type Claim = {
   serial_number: string | null;
   claim_date: string;
   damage_description?: string;
+  client_statement?: string | null;
   note?: string | null;
   forwarded_date?: string | null;
   vendor_reference_number?: string | null;
@@ -104,7 +105,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
   headers.set("Accept", "application/json");
   if (token) headers.set("Authorization", `Bearer ${token}`);
-  if (options.body && !headers.has("Content-Type")) {
+  if (options.body && !(options.body instanceof FormData) && !headers.has("Content-Type")) {
     headers.set("Content-Type", "application/json");
   }
 
@@ -300,6 +301,7 @@ export function createClaim(input: {
   warranty_id: number;
   claim_date: string;
   damage_description: string;
+  client_statement?: string | null;
 }): Promise<Claim> {
   return request<Claim>("/claims", {
     method: "POST",
@@ -307,14 +309,14 @@ export function createClaim(input: {
   });
 }
 
-/*
-export function summarizeClaimTranscript(transcript: string): Promise<{ points: string[] }> {
-  return request<{ points: string[] }>("/claims/summarize", {
+export function transcribeClaimAudio(audio: File): Promise<{ text: string; language: string }> {
+  const formData = new FormData();
+  formData.append("audio", audio);
+  return request<{ text: string; language: string }>("/claims/transcribe", {
     method: "POST",
-    body: JSON.stringify({ transcript }),
+    body: formData,
   });
 }
-*/
 
 export function updateClaim(id: number, input: { damage_description: string; claim_date: string }): Promise<Claim> {
   return request<Claim>(`/claims/${id}`, { method: "PATCH", body: JSON.stringify(input) });

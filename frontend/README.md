@@ -58,3 +58,5 @@ NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
 Foto bukti klaim saat ini hanya disimpan di IndexedDB browser yang digunakan admin. Foto tidak dikirim ke backend, tidak tersinkron antarperangkat, dan dapat hilang jika data browser dihapus. Format yang didukung JPG, PNG, dan WEBP dengan ukuran maksimal 5 MB.
+
+Pada form klaim, rekaman suara klien otomatis dikirim ke endpoint transkripsi lokal backend. Hasil ucapan disimpan bersama poin keluhan pada klaim. Perekaman memerlukan izin mikrofon dan konfigurasi Whisper lokal di backend; poin otomatis saat ini berupa kalimat transkrip yang diformat sebagai daftar, bukan ringkasan AI.

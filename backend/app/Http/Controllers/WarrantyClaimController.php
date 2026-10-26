@@ -63,6 +63,7 @@ class WarrantyClaimController extends Controller
             'warranty_id' => ['required', 'integer', 'exists:warranties,id'],
             'claim_date' => ['required', 'date'],
             'damage_description' => ['required', 'string'],
+            'client_statement' => ['nullable', 'string', 'max:10000'],
             'note' => ['nullable', 'string'],
         ]);
 
@@ -93,6 +94,7 @@ class WarrantyClaimController extends Controller
                 'vendor_id' => $unit->product->vendor_id,
                 'serial_number' => $unit->serial_number,
                 'damage_description' => $validated['damage_description'],
+                'client_statement' => $validated['client_statement'] ?? null,
                 'claim_date' => $validated['claim_date'],
                 'status' => 'received',
             ]);
