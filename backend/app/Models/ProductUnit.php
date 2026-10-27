@@ -36,4 +36,9 @@ class ProductUnit extends Model
     {
         return $this->hasMany(Warranty::class);
     }
+
+    public function paidServiceRequests(): HasMany
+    {
+        return $this->hasMany(PaidServiceRequest::class);
+    }
 }

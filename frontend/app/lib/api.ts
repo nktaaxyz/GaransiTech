@@ -40,6 +40,18 @@ export type ProductUnit = {
   serial_number: string;
   product?: { id: number; name: string; category?: string | null; vendor?: Pick<Vendor, "id" | "name"> };
   customer?: { id: number; name: string };
+  warranties?: Warranty[];
+};
+
+export type PaidServiceRequest = {
+  id: number;
+  product_unit: ProductUnit;
+  vendor: Pick<Vendor, "id" | "name"> | null;
+  issue_description: string;
+  quoted_amount: string | null;
+  notes: string | null;
+  status: "requested" | "quoted" | "approved" | "in_progress" | "completed" | "cancelled";
+  created_at: string;
 };
 
 export type Product = {
@@ -197,6 +209,40 @@ export async function getProducts(): Promise<Product[]> {
 export async function getVendors(): Promise<Vendor[]> {
   const response = await request<Paginated<Vendor>>("/vendors");
   return response.data;
+}
+
+export async function getPaidServiceRequests(page = 1): Promise<Paginated<PaidServiceRequest>> {
+  return request<Paginated<PaidServiceRequest>>(`/paid-service-requests?page=${page}`);
+}
+
+export function getExpiredWarrantyUnits(): Promise<ProductUnit[]> {
+  return request<ProductUnit[]>("/paid-service-requests/eligible-units");
+}
+
+export function createPaidServiceRequest(input: {
+  product_unit_id: number;
+  vendor_id?: number | null;
+  issue_description: string;
+  quoted_amount?: number | null;
+  notes?: string;
+}): Promise<PaidServiceRequest> {
+  return request<PaidServiceRequest>("/paid-service-requests", {
+    method: "POST",
+    body: JSON.stringify(input),
+  });
+}
+
+export function updatePaidServiceRequest(id: number, input: {
+  vendor_id?: number | null;
+  issue_description: string;
+  quoted_amount?: number | null;
+  notes?: string | null;
+  status: PaidServiceRequest["status"];
+}): Promise<PaidServiceRequest> {
+  return request<PaidServiceRequest>(`/paid-service-requests/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
 }
 
 export function createProduct(input: { name: string; category?: string; vendor_id: number }): Promise<Product> {

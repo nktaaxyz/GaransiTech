@@ -8,6 +8,7 @@ Frontend aplikasi GaransiTech yang dibangun dengan Next.js dan TypeScript.
 - Manajemen pelanggan, vendor, produk, dan unit produk
 - Kelola masa berlaku garansi
 - Proses klaim garansi dan update status
+- Pencatatan dan pelacakan servis berbayar untuk unit dengan garansi berakhir
 - Lampiran foto bukti kerusakan yang disimpan lokal di browser admin
 - UI admin yang responsif untuk desktop dan mobile
 

@@ -18,4 +18,9 @@ class Vendor extends Model
     {
         return $this->hasMany(Product::class);
     }
+
+    public function paidServiceRequests(): HasMany
+    {
+        return $this->hasMany(PaidServiceRequest::class);
+    }
 }

@@ -69,6 +69,15 @@ LOCAL_WHISPER_TIMEOUT=180
 
 Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The claim form records audio and sends it to this endpoint when recording stops. The client statement is stored separately from the bullet-formatted damage description. Run `php artisan migrate` to add the `client_statement` column. Automatic bullet formatting does not use an AI summarization service; `/api/claims/summarize` remains unavailable until one is configured.
 
+## Paid service requests
+
+Admins can create paid-service requests for product units whose warranty has ended, assign a vendor, record the estimated cost, and track the request through approval and service completion. This workflow is separate from warranty claims and requires an authenticated admin session. Run `php artisan migrate` to create the `paid_service_requests` table.
+
+- `GET /api/paid-service-requests` lists requests.
+- `GET /api/paid-service-requests/eligible-units` lists units with an ended warranty and no current or future warranty.
+- `POST /api/paid-service-requests` creates a request; the backend verifies the unit's warranty has ended.
+- `PATCH /api/paid-service-requests/{id}` updates its vendor, estimated cost, notes, and status (`requested`, `quoted`, `approved`, `in_progress`, `completed`, or `cancelled`).
+
 ## License
 
 The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).

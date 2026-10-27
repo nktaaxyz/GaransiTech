@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\PaidServiceRequest;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\User;
@@ -159,6 +160,38 @@ class ProductUnitApiTest extends TestCase
             'warranty_code' => 'W-1001',
             'start_date' => '2026-09-01',
             'end_date' => '2027-09-01',
+        ]);
+
+        $this->deleteJson("/api/product-units/{$unit->id}")
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['product_unit']);
+
+        $this->assertDatabaseHas('product_units', ['id' => $unit->id]);
+    }
+
+    public function test_product_unit_with_paid_service_history_cannot_be_deleted(): void
+    {
+        $this->authenticate();
+
+        $vendor = Vendor::create(['name' => 'PT Maju Jaya']);
+        $product = Product::create([
+            'vendor_id' => $vendor->id,
+            'name' => 'Laptop Pro 14',
+            'category' => 'Elektronik',
+        ]);
+        $customer = Customer::create([
+            'name' => 'Budi',
+            'phone' => '08123456789',
+        ]);
+        $unit = ProductUnit::create([
+            'product_id' => $product->id,
+            'customer_id' => $customer->id,
+            'serial_number' => 'SN-SERVICE',
+        ]);
+        PaidServiceRequest::create([
+            'product_unit_id' => $unit->id,
+            'issue_description' => 'Layar berkedip.',
+            'status' => 'requested',
         ]);
 
         $this->deleteJson("/api/product-units/{$unit->id}")

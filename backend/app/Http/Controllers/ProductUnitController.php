@@ -63,6 +63,12 @@ class ProductUnitController extends Controller
             ]);
         }
 
+        if ($productUnit->paidServiceRequests()->exists()) {
+            throw ValidationException::withMessages([
+                'product_unit' => ['Unit produk tidak dapat dihapus karena memiliki riwayat servis berbayar.'],
+            ]);
+        }
+
         $productUnit->delete();
 
         return response()->json([

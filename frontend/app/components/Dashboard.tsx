@@ -32,6 +32,7 @@ const navItems = [
   { href: "/product-units", label: "Unit produk", icon: "units" },
   { href: "/warranties", label: "Garansi", icon: "warranty" },
   { href: "/claims", label: "Klaim garansi", icon: "claims" },
+  { href: "/paid-services", label: "Servis berbayar", icon: "services" },
   { href: "/reports", label: "Laporan", icon: "reports" },
   { href: "/#activity", label: "Aktivitas", icon: "activity" },
 ] as const;
@@ -44,6 +45,7 @@ const navIconPaths = {
   units: <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 7h8M8 11h2m2 0h1m2 0h1M8 15h1m2 0h2m2 0h1M8 18h8" /></>,
   warranty: <><path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z" /><path d="m9 12 2 2 4-4" /></>,
   claims: <><path d="M9 11 12 14 22 4" /><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" /></>,
+  services: <><path d="M14.7 6.3a5 5 0 0 0-6.4 6.4L3 18l3 3 5.3-5.3a5 5 0 0 0 6.4-6.4L14 13l-3-3 3.7-3.7Z" /></>,
   reports: <><path d="M3 3v18h18" /><path d="M18 17V9m-5 8V5m-5 12v-5" /></>,
   activity: <><path d="M3 12h4l3-8 4 16 3-8h4" /></>,
 };
