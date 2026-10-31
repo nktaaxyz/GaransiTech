@@ -22,9 +22,19 @@ class Warranty_claims extends Model
         'claim_date',
         'status',
         'forwarded_date',
+        'shipping_carrier',
         'vendor_reference_number',
         'resolution_date',
         'resolution_note',
+        'received_at',
+        'received_condition',
+        'receipt_note',
+        'evidence_photo_path',
+        'evidence_photo_mime_type',
+    ];
+
+    protected $hidden = [
+        'evidence_photo_path',
     ];
 
     protected function casts(): array
@@ -33,6 +43,7 @@ class Warranty_claims extends Model
             'claim_date' => 'date',
             'forwarded_date' => 'date',
             'resolution_date' => 'date',
+            'received_at' => 'date',
         ];
     }
 

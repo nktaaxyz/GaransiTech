@@ -35,6 +35,10 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::apiResource('product-units', ProductUnitController::class);
     Route::apiResource('warranties', WarrantyController::class);
     Route::apiResource('claims', WarrantyClaimController::class)->only(['index', 'store', 'show', 'update']);
+    Route::patch('claims/{claim}/receipt', [WarrantyClaimController::class, 'recordReceipt']);
+    Route::get('claims/{claim}/receipt', [WarrantyClaimController::class, 'downloadReceipt']);
+    Route::get('claims/{claim}/vendor-dispatch', [WarrantyClaimController::class, 'downloadVendorDispatch']);
+    Route::post('claims/{claim}/evidence-photo', [WarrantyClaimController::class, 'uploadEvidencePhoto']);
     Route::patch('claims/{claim}/status', [WarrantyClaimController::class, 'updateStatus']);
     Route::post('claims/transcribe', AudioTranscriptionController::class)
         ->middleware('throttle:3,1');

@@ -10,6 +10,8 @@ use App\Models\Vendor;
 use App\Models\Warranty;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
 
@@ -101,6 +103,180 @@ class WarrantyClaimApiTest extends TestCase
         ])->assertUnprocessable()->assertJsonValidationErrors(['warranty_id']);
     }
 
+    public function test_receipt_must_be_recorded_before_pdf_can_be_downloaded(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->get('/api/claims/'.$claim['id'].'/receipt')
+            ->assertNotFound();
+    }
+
+    public function test_claim_receipt_can_be_recorded_and_downloaded_as_a_pdf(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->patchJson('/api/claims/'.$claim['id'].'/receipt', [
+            'received_at' => '2026-09-23',
+            'received_condition' => 'Layar retak, unit menyala.',
+            'receipt_note' => 'Adaptor disertakan.',
+        ])->assertOk()
+            ->assertJsonPath('received_at', '2026-09-23T00:00:00.000000Z')
+            ->assertJsonPath('received_condition', 'Layar retak, unit menyala.')
+            ->assertJsonPath('receipt_note', 'Adaptor disertakan.');
+
+        $response = $this->get('/api/claims/'.$claim['id'].'/receipt');
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename=bukti-penerimaan-'.$claim['claim_code'].'.pdf');
+
+        $pdf = $response->getContent();
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        preg_match_all('/\/Type\s*\/Page\b/', $pdf, $pages);
+        $this->assertCount(1, $pages[0]);
+    }
+
+    public function test_vendor_dispatch_pdf_is_available_after_claim_is_forwarded(): void
+    {
+        if (! extension_loaded('gd')) {
+            $this->markTestSkipped('Enable PHP GD to verify image embedding in the vendor dispatch PDF.');
+        }
+
+        Storage::fake('local');
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->get('/api/claims/'.$claim['id'].'/vendor-dispatch')
+            ->assertNotFound();
+
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Barang dikirim ke vendor.',
+            'forwarded_date' => '2026-09-24',
+            'vendor_reference_number' => 'RESI-12345',
+            'shipping_carrier' => 'JNE',
+        ])->assertOk()
+            ->assertJsonPath('shipping_carrier', 'JNE');
+
+        $this->post('/api/claims/'.$claim['id'].'/evidence-photo', [
+            'photo' => UploadedFile::fake()->createWithContent(
+                'damage.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAFklEQVQImWO8IyfHwMDAxMDAwMDAAAAOCAEchcSHIgAAAABJRU5ErkJggg=='),
+            ),
+        ])->assertOk();
+
+        $response = $this->get('/api/claims/'.$claim['id'].'/vendor-dispatch');
+
+        $response->assertOk()
+            ->assertHeader('content-type', 'application/pdf')
+            ->assertHeader('content-disposition', 'attachment; filename=bukti-pengiriman-vendor-'.$claim['claim_code'].'.pdf');
+
+        $pdf = $response->getContent();
+        $this->assertStringStartsWith('%PDF-', $pdf);
+        $this->assertStringContainsString('/Subtype /Image', $pdf);
+        preg_match_all('/\/Type\s*\/Page\b/', $pdf, $pages);
+        $this->assertCount(2, $pages[0]);
+    }
+
+    public function test_vendor_dispatch_pdf_requires_an_evidence_photo(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Barang dikirim ke vendor.',
+            'forwarded_date' => '2026-09-24',
+            'vendor_reference_number' => 'RESI-12345',
+            'shipping_carrier' => 'JNE',
+        ])->assertOk();
+
+        $this->getJson('/api/claims/'.$claim['id'].'/vendor-dispatch')
+            ->assertUnprocessable()
+            ->assertJsonPath('message', 'Foto bukti kerusakan belum tersedia. Unggah foto bukti klaim sebelum mencetak PDF.');
+    }
+
+    public function test_vendor_dispatch_pdf_reports_when_gd_is_unavailable(): void
+    {
+        if (extension_loaded('gd')) {
+            $this->markTestSkipped('This runtime has PHP GD enabled.');
+        }
+
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Barang dikirim ke vendor.',
+            'forwarded_date' => '2026-09-24',
+            'vendor_reference_number' => 'RESI-12345',
+            'shipping_carrier' => 'JNE',
+        ])->assertOk();
+
+        Storage::fake('local');
+        $this->post('/api/claims/'.$claim['id'].'/evidence-photo', [
+            'photo' => UploadedFile::fake()->createWithContent(
+                'damage.png',
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91JpzAAAACXBIWXMAAA7EAAAOxAGVKw4bAAAAFklEQVQImWO8IyfHwMDAxMDAwMDAAAAOCAEchcSHIgAAAABJRU5ErkJggg=='),
+            ),
+        ])->assertOk();
+
+        $this->getJson('/api/claims/'.$claim['id'].'/vendor-dispatch')
+            ->assertStatus(503)
+            ->assertJsonPath('message', 'PDF dengan foto memerlukan ekstensi PHP GD. Aktifkan extension=gd di php.ini lalu restart server PHP.');
+    }
+
+    public function test_evidence_photo_upload_validates_image_type(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->post('/api/claims/'.$claim['id'].'/evidence-photo', [
+            'photo' => UploadedFile::fake()->create('notes.txt', 10, 'text/plain'),
+        ])->assertUnprocessable()
+            ->assertJsonValidationErrors(['photo']);
+    }
+
+    public function test_receipt_requires_a_date_and_item_condition(): void
+    {
+        $warranty = $this->createWarranty();
+        $claim = $this->postJson('/api/claims', [
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Layar tidak menyala.',
+        ])->assertCreated()->json();
+
+        $this->patchJson('/api/claims/'.$claim['id'].'/receipt', [])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['received_at', 'received_condition']);
+    }
+
     public function test_claim_status_transition_is_recorded_and_final_status_is_locked(): void
     {
         $warranty = $this->createWarranty();
@@ -110,21 +286,22 @@ class WarrantyClaimApiTest extends TestCase
             'damage_description' => 'Tidak menyala.',
         ])->json();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'forwarded_to_vendor',
             'note' => 'Diteruskan ke vendor.',
             'forwarded_date' => '2026-09-23',
             'vendor_reference_number' => 'VENDOR-001',
+            'shipping_carrier' => 'JNE',
         ])->assertOk()->assertJsonPath('status', 'forwarded_to_vendor');
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'completed',
             'note' => 'Langsung selesai.',
             'resolution_date' => '2026-09-23',
             'resolution_note' => 'Perbaikan selesai.',
         ])->assertUnprocessable()->assertJsonValidationErrors(['status']);
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'processing_by_vendor',
             'note' => 'Vendor mulai memproses.',
         ])->assertOk();
@@ -139,11 +316,11 @@ class WarrantyClaimApiTest extends TestCase
             'damage_description' => 'Tidak menyala.',
         ])->json();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'forwarded_to_vendor',
             'note' => 'Diteruskan ke vendor.',
         ])->assertUnprocessable()
-            ->assertJsonValidationErrors(['forwarded_date', 'vendor_reference_number']);
+            ->assertJsonValidationErrors(['forwarded_date', 'vendor_reference_number', 'shipping_carrier']);
     }
 
     public function test_completion_requires_resolution_data(): void
@@ -155,19 +332,20 @@ class WarrantyClaimApiTest extends TestCase
             'damage_description' => 'Tidak menyala.',
         ])->json();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'forwarded_to_vendor',
             'note' => 'Diteruskan ke vendor.',
             'forwarded_date' => '2026-09-23',
             'vendor_reference_number' => 'VENDOR-002',
+            'shipping_carrier' => 'JNE',
         ])->assertOk();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'processing_by_vendor',
             'note' => 'Sedang diproses vendor.',
         ])->assertOk();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
             'status' => 'completed',
             'note' => 'Perbaikan selesai.',
         ])->assertUnprocessable()
@@ -178,47 +356,48 @@ class WarrantyClaimApiTest extends TestCase
     {
         $warranty = $this->createWarranty();
         $claim = $this->postJson('/api/claims', [
-        'warranty_id' => $warranty->id,
-        'claim_date' => '2026-09-23',
-        'damage_description' => 'Tidak menyala.',
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Tidak menyala.',
         ])->assertCreated()->json();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
-        'status' => 'forwarded_to_vendor',
-        'note' => 'Diteruskan ke vendor.',
-        'forwarded_date' => '2026-09-23',
-        'vendor_reference_number' => 'VENDOR-003',
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'forwarded_to_vendor',
+            'note' => 'Diteruskan ke vendor.',
+            'forwarded_date' => '2026-09-23',
+            'vendor_reference_number' => 'VENDOR-003',
+            'shipping_carrier' => 'JNE',
         ])->assertOk();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
-        'status' => 'processing_by_vendor',
-        'note' => 'Sedang diproses vendor.',
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'processing_by_vendor',
+            'note' => 'Sedang diproses vendor.',
         ])->assertOk();
 
-        $this->patchJson('/api/claims/' . $claim['id'] . '/status', [
-        'status' => 'completed',
-        'note' => 'Unit pengganti diberikan.',
-        'resolution_date' => '2026-09-23',
-        'resolution_note' => 'Unit diganti.',
+        $this->patchJson('/api/claims/'.$claim['id'].'/status', [
+            'status' => 'completed',
+            'note' => 'Unit pengganti diberikan.',
+            'resolution_date' => '2026-09-23',
+            'resolution_note' => 'Unit diganti.',
         ])->assertOk();
 
-        $this->getJson('/api/warranties/' . $warranty->id)
-        ->assertOk()
-        ->assertJsonPath('status', 'expired');
+        $this->getJson('/api/warranties/'.$warranty->id)
+            ->assertOk()
+            ->assertJsonPath('status', 'expired');
 
         $this->getJson('/api/warranties?status=active')
-        ->assertOk()
-        ->assertJsonCount(0, 'data');
+            ->assertOk()
+            ->assertJsonCount(0, 'data');
 
         $this->getJson('/api/warranties?status=expired')
-        ->assertOk()
-        ->assertJsonCount(1, 'data')
-        ->assertJsonPath('data.0.warranty_code', $warranty->warranty_code);
+            ->assertOk()
+            ->assertJsonCount(1, 'data')
+            ->assertJsonPath('data.0.warranty_code', $warranty->warranty_code);
 
         $this->postJson('/api/claims', [
-        'warranty_id' => $warranty->id,
-        'claim_date' => '2026-09-23',
-        'damage_description' => 'Klaim kedua.',
+            'warranty_id' => $warranty->id,
+            'claim_date' => '2026-09-23',
+            'damage_description' => 'Klaim kedua.',
         ])->assertUnprocessable()->assertJsonValidationErrors(['warranty_id']);
     }
 

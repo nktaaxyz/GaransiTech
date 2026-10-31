@@ -36,8 +36,9 @@ class PaidServiceRequestController extends Controller
 
         return response()->json(
             ProductUnit::query()
-                ->whereHas('warranties', fn ($query) => $query->whereDate('end_date', '<', $today))
-                ->whereDoesntHave('warranties', fn ($query) => $query->whereDate('end_date', '>=', $today))
+                ->whereDoesntHave('warranties', fn ($query) => $query
+                    ->whereDate('start_date', '<=', $today)
+                    ->whereDate('end_date', '>=', $today))
                 ->with(['product', 'customer', 'warranties'])
                 ->latest()
                 ->get(),
@@ -47,17 +48,31 @@ class PaidServiceRequestController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'product_unit_id' => ['required', 'integer', 'exists:product_units,id'],
+            'product_unit_id' => ['nullable', 'integer', 'exists:product_units,id'],
+            'customer_name' => ['required_without:product_unit_id', 'nullable', 'string', 'max:255'],
+            'customer_phone' => ['required_without:product_unit_id', 'nullable', 'string', 'max:50'],
+            'product_name' => ['required_without:product_unit_id', 'nullable', 'string', 'max:255'],
+            'serial_number' => ['nullable', 'string', 'max:255'],
             'vendor_id' => ['nullable', 'integer', 'exists:vendors,id'],
             'issue_description' => ['required', 'string', 'max:10000'],
             'quoted_amount' => ['nullable', 'numeric', 'min:0', 'max:9999999999.99'],
             'notes' => ['nullable', 'string', 'max:10000'],
         ]);
 
-        $this->ensureWarrantyExpired((int) $validated['product_unit_id']);
+        $unit = isset($validated['product_unit_id'])
+            ? ProductUnit::with(['customer', 'product'])->findOrFail($validated['product_unit_id'])
+            : null;
+
+        if ($unit !== null) {
+            $this->ensureNoActiveWarranty($unit);
+        }
 
         $serviceRequest = PaidServiceRequest::create([
             ...$validated,
+            'customer_name' => $unit?->customer?->name ?? ($validated['customer_name'] ?? null),
+            'customer_phone' => $unit?->customer?->phone ?? ($validated['customer_phone'] ?? null),
+            'product_name' => $unit?->product?->name ?? ($validated['product_name'] ?? null),
+            'serial_number' => $unit?->serial_number ?? ($validated['serial_number'] ?? null),
             'status' => 'requested',
         ]);
 
@@ -84,17 +99,16 @@ class PaidServiceRequestController extends Controller
         );
     }
 
-    private function ensureWarrantyExpired(int $productUnitId): void
+    private function ensureNoActiveWarranty(ProductUnit $unit): void
     {
-        $unit = ProductUnit::query()->findOrFail($productUnitId);
         $today = now()->toDateString();
 
-        if (
-            ! $unit->warranties()->whereDate('end_date', '<', $today)->exists()
-            || $unit->warranties()->whereDate('end_date', '>=', $today)->exists()
-        ) {
+        if ($unit->warranties()
+            ->whereDate('start_date', '<=', $today)
+            ->whereDate('end_date', '>=', $today)
+            ->exists()) {
             throw ValidationException::withMessages([
-                'product_unit_id' => ['Servis berbayar hanya dapat dibuat untuk unit dengan garansi yang sudah berakhir.'],
+                'product_unit_id' => ['Unit dengan garansi aktif harus diproses melalui klaim garansi.'],
             ]);
         }
     }

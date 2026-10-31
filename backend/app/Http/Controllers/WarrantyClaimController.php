@@ -5,13 +5,16 @@ namespace App\Http\Controllers;
 use App\Models\ClaimStatusLog;
 use App\Models\Warranty;
 use App\Models\Warranty_claims;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
+use Symfony\Component\HttpFoundation\Response;
 
 class WarrantyClaimController extends Controller
 {
@@ -121,6 +124,136 @@ class WarrantyClaimController extends Controller
         );
     }
 
+    public function recordReceipt(Request $request, Warranty_claims $claim): JsonResponse
+    {
+        $validated = $request->validate([
+            'received_at' => ['required', 'date'],
+            'received_condition' => ['required', 'string', 'max:10000'],
+            'receipt_note' => ['nullable', 'string', 'max:10000'],
+        ]);
+
+        $claim->update($validated);
+
+        return response()->json(
+            $claim->fresh()->load(['warranty', 'customer', 'product', 'vendor', 'statusLogs.changedBy']),
+        );
+    }
+
+    public function downloadReceipt(Warranty_claims $claim): Response
+    {
+        if ($claim->received_at === null) {
+            abort(404, 'Data penerimaan barang untuk klaim ini belum dicatat.');
+        }
+
+        $claim->load(['customer', 'product', 'vendor']);
+
+        return Pdf::loadView('pdf.claim-receipt', [
+            'claim' => $claim,
+        ])
+            ->setPaper('a4')
+            ->download("bukti-penerimaan-{$claim->claim_code}.pdf");
+    }
+
+    public function downloadVendorDispatch(Warranty_claims $claim): Response
+    {
+        if ($claim->forwarded_date === null || $claim->vendor_reference_number === null) {
+            abort(404, 'Data pengiriman barang ke vendor untuk klaim ini belum dicatat.');
+        }
+
+        if ($claim->evidence_photo_path === null || ! Storage::disk('local')->exists($claim->evidence_photo_path)) {
+            abort(422, 'Foto bukti kerusakan belum tersedia. Unggah foto bukti klaim sebelum mencetak PDF.');
+        }
+
+        if (! extension_loaded('gd')) {
+            abort(503, 'PDF dengan foto memerlukan ekstensi PHP GD. Aktifkan extension=gd di php.ini lalu restart server PHP.');
+        }
+
+        $claim->load(['customer', 'product', 'vendor']);
+        $photoDataUri = $this->createDispatchPhotoDataUri($claim);
+
+        return Pdf::loadView('pdf.claim-vendor-dispatch', [
+            'claim' => $claim,
+            'copies' => ['Vendor', 'Arsip Toko'],
+            'photoDataUri' => $photoDataUri,
+        ])
+            ->setPaper('a4')
+            ->download("bukti-pengiriman-vendor-{$claim->claim_code}.pdf");
+    }
+
+    private function createDispatchPhotoDataUri(Warranty_claims $claim): string
+    {
+        $source = imagecreatefromstring(Storage::disk('local')->get($claim->evidence_photo_path));
+        if ($source === false) {
+            throw new \RuntimeException('Foto bukti klaim tidak dapat dibaca untuk PDF.');
+        }
+
+        $canvas = imagecreatetruecolor(1450, 600);
+        if ($canvas === false) {
+            imagedestroy($source);
+            throw new \RuntimeException('Area foto PDF tidak dapat dibuat.');
+        }
+
+        $background = imagecolorallocate($canvas, 255, 255, 255);
+        imagefill($canvas, 0, 0, $background);
+
+        $sourceWidth = imagesx($source);
+        $sourceHeight = imagesy($source);
+        $scale = min(1450 / $sourceWidth, 600 / $sourceHeight);
+        $width = (int) round($sourceWidth * $scale);
+        $height = (int) round($sourceHeight * $scale);
+        imagecopyresampled(
+            $canvas,
+            $source,
+            (int) floor((1450 - $width) / 2),
+            (int) floor((600 - $height) / 2),
+            0,
+            0,
+            $width,
+            $height,
+            $sourceWidth,
+            $sourceHeight,
+        );
+
+        ob_start();
+        $encoded = imagejpeg($canvas, null, 85);
+        $image = ob_get_clean();
+        imagedestroy($source);
+        imagedestroy($canvas);
+
+        if (! $encoded || $image === false) {
+            throw new \RuntimeException('Foto bukti klaim gagal disiapkan untuk PDF.');
+        }
+
+        return 'data:image/jpeg;base64,'.base64_encode($image);
+    }
+
+    public function uploadEvidencePhoto(Request $request, Warranty_claims $claim): JsonResponse
+    {
+        $validated = $request->validate([
+            'photo' => ['required', 'image', 'mimes:jpeg,png', 'max:5120'],
+        ]);
+
+        $photo = $validated['photo'];
+        $path = $photo->store('claim-evidence', 'local');
+        if ($path === false) {
+            throw new \RuntimeException('Foto bukti klaim gagal disimpan.');
+        }
+
+        $oldPath = $claim->evidence_photo_path;
+        $claim->update([
+            'evidence_photo_path' => $path,
+            'evidence_photo_mime_type' => $photo->getMimeType(),
+        ]);
+
+        if ($oldPath && $oldPath !== $path) {
+            Storage::disk('local')->delete($oldPath);
+        }
+
+        return response()->json([
+            'message' => 'Foto bukti klaim berhasil diunggah.',
+        ]);
+    }
+
     public function update(Request $request, Warranty_claims $claim): JsonResponse
     {
         $validated = $request->validate([
@@ -151,6 +284,12 @@ class WarrantyClaimController extends Controller
                 'string',
                 'max:255',
             ],
+            'shipping_carrier' => [
+                Rule::requiredIf($request->input('status') === 'forwarded_to_vendor'),
+                'nullable',
+                'string',
+                'max:255',
+            ],
             'resolution_date' => [
                 Rule::requiredIf($request->input('status') === 'completed'),
                 'nullable',
@@ -170,6 +309,7 @@ class WarrantyClaimController extends Controller
             $claim->update([
                 'status' => $validated['status'],
                 'forwarded_date' => $validated['forwarded_date'] ?? $claim->forwarded_date,
+                'shipping_carrier' => $validated['shipping_carrier'] ?? $claim->shipping_carrier,
                 'vendor_reference_number' => $validated['vendor_reference_number'] ?? $claim->vendor_reference_number,
                 'resolution_date' => $validated['resolution_date'] ?? $claim->resolution_date,
                 'resolution_note' => $validated['resolution_note'] ?? $claim->resolution_note,
@@ -209,7 +349,7 @@ class WarrantyClaimController extends Controller
     private function generateClaimCode(): string
     {
         do {
-            $code = 'CLM-' . CarbonImmutable::today()->format('Ymd') . '-' . Str::upper(Str::random(6));
+            $code = 'CLM-'.CarbonImmutable::today()->format('Ymd').'-'.Str::upper(Str::random(6));
         } while (Warranty_claims::query()->where('claim_code', $code)->exists());
 
         return $code;

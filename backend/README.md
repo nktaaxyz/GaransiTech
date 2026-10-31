@@ -71,12 +71,16 @@ Audio uploads are converted to temporary 16 kHz mono WAV files before transcript
 
 ## Paid service requests
 
-Admins can create paid-service requests for product units whose warranty has ended, assign a vendor, record the estimated cost, and track the request through approval and service completion. This workflow is separate from warranty claims and requires an authenticated admin session. Run `php artisan migrate` to create the `paid_service_requests` table.
+Admins can create paid-service requests for units without an active warranty, including devices that are not registered in the warranty database. Standalone requests store the customer and device details directly without creating a warranty or product unit. Units with an active warranty must be handled through warranty claims. This workflow requires an authenticated admin session. Run `php artisan migrate` to apply the service-request migrations.
 
 - `GET /api/paid-service-requests` lists requests.
-- `GET /api/paid-service-requests/eligible-units` lists units with an ended warranty and no current or future warranty.
-- `POST /api/paid-service-requests` creates a request; the backend verifies the unit's warranty has ended.
+- `GET /api/paid-service-requests/eligible-units` lists registered units with no active warranty.
+- `POST /api/paid-service-requests` creates a request linked to a registered unit or standalone customer/device details.
 - `PATCH /api/paid-service-requests/{id}` updates its vendor, estimated cost, notes, and status (`requested`, `quoted`, `approved`, `in_progress`, `completed`, or `cancelled`).
+
+## Claim dispatch evidence
+
+The authenticated `POST /api/claims/{id}/evidence-photo` endpoint accepts a JPG or PNG evidence image up to 5 MB. Images are stored on Laravel's private local disk. The vendor dispatch PDF (`GET /api/claims/{id}/vendor-dispatch`) includes the uploaded image in both the vendor and store copies. The claim screen uploads its browser-stored damage photo when the admin downloads the dispatch PDF. Enable PHP's GD extension (`extension=gd` in `php.ini`) on the backend server to render PDF images, then restart the PHP server.
 
 ## License
 

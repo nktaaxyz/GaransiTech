@@ -3,7 +3,7 @@
 ## GaransiTech
 
 **Sistem Manajemen Garansi dan Klaim Produk Berbasis Web**  
-Versi: 1.0  
+Versi: 1.2
 Status: Draft implementasi  
 
 
@@ -31,6 +31,8 @@ GaransiTech bukan aplikasi kasir dan bukan sistem pencatatan seluruh transaksi p
 4. Menyimpan riwayat perubahan status dan catatan penanganan klaim.
 5. Menyediakan pencarian dan ringkasan untuk membantu pekerjaan admin.
 6. Membantu admin mengisi deskripsi kerusakan melalui transkripsi audio berbahasa Indonesia.
+7. Menyediakan bukti penerimaan barang klaim untuk pelanggan dan bukti pengiriman barang klaim ke vendor dalam PDF terpisah.
+8. Mencatat dan memantau permintaan servis berbayar untuk perangkat tanpa garansi aktif, termasuk perangkat yang belum terdaftar.
 
 ## 4. Pengguna dan Hak Akses
 
@@ -62,6 +64,8 @@ Pelanggan dan vendor tidak memiliki akun serta tidak login ke aplikasi.
 - Registrasi garansi per unit produk.
 - Pemantauan status garansi.
 - Manajemen klaim dan riwayat statusnya.
+- Pembuatan bukti penerimaan barang klaim dalam format PDF yang dapat dicetak.
+- Manajemen permintaan servis berbayar untuk unit dengan garansi berakhir atau perangkat yang belum terdaftar.
 - Pencarian data.
 - Ringkasan dashboard dan laporan dasar.
 - Transkripsi audio berbahasa Indonesia menjadi teks untuk deskripsi kerusakan.
@@ -72,7 +76,9 @@ Pelanggan dan vendor tidak memiliki akun serta tidak login ke aplikasi.
 - Kasir, pembayaran, atau laporan keuangan.
 - Portal pelanggan atau vendor.
 - Pengajuan klaim mandiri oleh pelanggan.
+- Portal atau akun pelanggan/vendor untuk mengakses dokumen dan status secara mandiri.
 - Pengiriman dan logistik.
+- Pengiriman PDF otomatis melalui email, WhatsApp, atau SMS.
 - Diagnosis fisik produk secara otomatis.
 - Keputusan klaim otomatis oleh AI.
 - Integrasi marketplace, POS, distributor, service center, WhatsApp, atau SMS.
@@ -152,6 +158,8 @@ Admin memproses dan memperbarui status klaim
 Sistem menyimpan riwayat dan catatan penanganan
 ```
 
+Proses klaim membedakan dua dokumen: saat toko menerima barang dari pelanggan, admin mencatat kondisi dan membuat bukti penerimaan PDF untuk pelanggan. Saat barang dikirim ke vendor, admin mencatat tanggal, jasa pengiriman, dan nomor resi, lalu membuat dokumen PDF terpisah untuk vendor dan arsip toko. Bukti pengiriman adalah dokumen administrasi toko dan tidak menggantikan bukti dari jasa ekspedisi atau konfirmasi penerimaan vendor.
+
 Status klaim:
 
 ```text
@@ -160,6 +168,24 @@ received → forwarded_to_vendor → processing_by_vendor → completed
 ```
 
 Keputusan akhir tetap berada pada admin.
+
+### 7.3 Permintaan Servis Mandiri / di Luar Garansi
+
+```text
+Pelanggan meminta servis kepada toko
+        ↓
+Admin memeriksa masa garansi unit
+        ↓
+Jika garansi aktif: ikuti alur klaim garansi
+Jika garansi berakhir/tidak ada atau perangkat belum terdaftar:
+admin mencatat data pelanggan dan perangkat pada permintaan servis
+        ↓
+Admin mencatat keluhan, mitra servis (jika ada), dan estimasi biaya
+        ↓
+Admin memperbarui status berdasarkan persetujuan pelanggan dan proses servis
+```
+
+Permintaan servis di luar garansi merupakan proses terpisah dari klaim garansi. Pelanggan tidak memerlukan akun. Jika perangkat belum terdaftar, admin mencatat nama dan nomor telepon pelanggan, nama perangkat, nomor serial bila tersedia, serta keluhan langsung pada permintaan servis; sistem tidak membuat registrasi garansi atau unit palsu. Pelanggan dapat meninjau estimasi biaya sebelum menyetujui servis.
 
 ## 8. Fitur Fungsional
 
@@ -220,14 +246,38 @@ name, contact_person, phone, email
 - Admin dapat memperbarui status, catatan, referensi vendor, dan tanggal penyelesaian.
 - Sistem menyimpan setiap perubahan status dalam riwayat.
 
-### 8.7 Transkripsi suara untuk deskripsi kerusakan
+### 8.7 Bukti Penerimaan dan Pengiriman Barang Klaim
+
+- Setelah menerima barang fisik yang akan diklaim, admin dapat mencatat tanggal penerimaan dan kondisi/catatan barang.
+- Sistem membuat bukti penerimaan barang dari customer dalam format PDF yang dapat diunduh dan dicetak untuk customer.
+- Bukti memuat setidaknya nomor klaim, tanggal penerimaan, identitas pelanggan, identitas produk dan serial number, serta catatan penerimaan.
+- Saat meneruskan klaim, admin wajib mencatat tanggal pengiriman, nama jasa pengiriman/ekspedisi, dan nomor resi.
+- Setelah status klaim diteruskan ke vendor, admin dapat mengunduh bukti pengiriman PDF terpisah dengan salinan untuk vendor dan arsip toko, masing-masing pada halaman tersendiri. Dokumen memuat tanggal pengiriman, vendor tujuan, jasa pengiriman, nomor resi, identitas unit dan klaim, serta foto bukti kondisi barang dengan tata letak yang siap dicetak.
+- Foto bukti klaim disimpan privat di server setelah diunggah dan disertakan pada PDF pengiriman vendor. Format foto yang diunggah untuk PDF adalah JPG atau PNG dengan ukuran maksimal 5 MB.
+- Pembuatan PDF dengan foto memerlukan ekstensi PHP GD aktif pada server.
+- Bukti pengiriman merupakan catatan administrasi toko, bukan konfirmasi independen dari jasa ekspedisi atau vendor.
+- Pemberian dokumen dilakukan oleh admin; pengiriman otomatis atau portal akses tidak termasuk.
+- Bukti penerimaan tidak menyatakan klaim disetujui, ditolak, atau sudah selesai.
+
+### 8.8 Permintaan Servis Mandiri / di Luar Garansi
+
+- Admin dapat membuat permintaan servis untuk unit dengan garansi berakhir atau tanpa data garansi.
+- Admin dapat membuat permintaan servis mandiri untuk perangkat yang belum terdaftar, tanpa membuat data pelanggan, unit, produk, atau garansi palsu.
+- Data mandiri mencakup nama dan nomor telepon pelanggan, nama perangkat, nomor serial (opsional), keluhan/kebutuhan servis, mitra servis (opsional), estimasi biaya (opsional), catatan, dan status.
+- Sistem menolak permintaan servis berbayar untuk unit yang memiliki garansi aktif; admin diarahkan menggunakan alur klaim garansi.
+- Jika perangkat/unit sudah terdaftar tetapi tidak memiliki garansi aktif, permintaan servis dapat dihubungkan ke data unit tersebut.
+- Status servis: `requested`, `quoted`, `approved`, `in_progress`, `completed`, atau `cancelled`.
+- Admin dapat memperbarui estimasi biaya, mitra servis, catatan, dan status proses.
+- Permintaan servis berbayar dicatat terpisah dari klaim garansi dan tidak mengubah riwayat atau status garansi.
+
+### 8.9 Transkripsi suara untuk deskripsi kerusakan
 
 - Admin dapat mendiktekan deskripsi kerusakan dalam bahasa Indonesia.
 - Hasil transkripsi mengisi kolom deskripsi kerusakan dan tetap dapat diedit sebelum disimpan.
 - Audio diproses oleh model pengenalan suara lokal di server aplikasi dan tidak dikirim ke layanan AI pihak ketiga.
 - Admin tetap dapat mengetik atau mengoreksi deskripsi jika transkripsi gagal.
 
-### 8.8 Pencarian, Dashboard, dan Laporan
+### 8.10 Pencarian, Dashboard, dan Laporan
 
 - Dashboard menampilkan jumlah garansi berdasarkan status.
 - Dashboard menampilkan klaim yang masih diproses.
@@ -246,6 +296,10 @@ name, contact_person, phone, email
 8. Data yang masih menjadi referensi data garansi atau klaim tidak boleh dihapus sembarangan.
 9. Admin harus memeriksa dan dapat mengoreksi hasil transkripsi sebelum menyimpan klaim.
 10. Perubahan status klaim harus meninggalkan catatan riwayat.
+11. Bukti penerimaan hanya dibuat setelah toko menerima barang fisik untuk klaim dan tidak menggantikan keputusan klaim.
+12. Unit dengan garansi aktif tidak dapat dibuatkan permintaan servis berbayar; permintaan tersebut mengikuti alur klaim garansi.
+13. Permintaan servis dapat dibuat tanpa registrasi unit atau garansi dengan menyimpan identitas pelanggan dan perangkat pada permintaan itu sendiri.
+14. Permintaan servis berbayar harus terpisah dari klaim garansi dan tidak memperpanjang atau mengubah masa garansi.
 
 ## 10. Rancangan Entitas
 
@@ -259,6 +313,7 @@ name, contact_person, phone, email
 | `warranties` | Masa berlaku garansi per unit |
 | `warranty_claims` | Pengajuan dan proses klaim |
 | `claim_status_logs` | Riwayat perubahan status klaim |
+| `paid_service_requests` | Permintaan servis berbayar; dapat terhubung ke unit terdaftar atau menyimpan data perangkat mandiri |
 | `activity_logs` | Audit aktivitas admin, bila diaktifkan |
 
 Relasi utama:
@@ -270,6 +325,8 @@ customer 1 ──── * product_units
 product_unit 1 ──── * warranties
 warranty 1 ──── * warranty_claims
 warranty_claim 1 ──── * claim_status_logs
+product_unit 1 ──── * paid_service_requests (product unit optional per request)
+vendor 1 ──── * paid_service_requests (opsional)
 ```
 
 ## 11. Kebutuhan Non-Fungsional
@@ -316,6 +373,12 @@ Frontend berkomunikasi dengan backend melalui REST API. Backend menangani autent
 - Status garansi tampil sesuai tanggal.
 - Admin dapat membuat klaim dari garansi yang sesuai.
 - Status dan riwayat klaim dapat diperbarui.
+- Admin dapat mencatat tanggal dan kondisi penerimaan barang, lalu mengunduh PDF bukti penerimaan untuk customer.
+- Admin wajib mengisi tanggal pengiriman, jasa pengiriman, dan nomor resi sebelum klaim diteruskan ke vendor.
+- Admin dapat mengunggah foto bukti JPG/PNG maksimal 5 MB dan mengunduh PDF pengiriman vendor yang memuat foto serta salinan vendor dan toko pada halaman terpisah.
+- Admin dapat mencatat servis untuk unit tanpa garansi aktif atau perangkat belum terdaftar tanpa membuat data unit/garansi palsu.
+- Sistem menolak permintaan servis berbayar untuk unit dengan garansi aktif, yang harus diproses melalui alur klaim.
+- Admin dapat mengelola estimasi biaya dan memperbarui status servis.
 - Data klaim tampil di dashboard.
 - Sistem tidak membutuhkan pencatatan semua transaksi penjualan.
 - Kegagalan AI tidak menghentikan proses klaim.

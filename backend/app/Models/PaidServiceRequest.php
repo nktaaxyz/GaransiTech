@@ -9,6 +9,10 @@ class PaidServiceRequest extends Model
 {
     protected $fillable = [
         'product_unit_id',
+        'customer_name',
+        'customer_phone',
+        'product_name',
+        'serial_number',
         'vendor_id',
         'issue_description',
         'quoted_amount',
