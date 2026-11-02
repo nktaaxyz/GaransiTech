@@ -4,12 +4,12 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createClaim, getClaimsPage, getToken, getWarranties, transcribeClaimAudio, updateClaimStatus, type Claim, type Warranty, type Paginated } from "../lib/api";
+import { createClaim, downloadClaimReceipt, downloadClaimVendorDispatch, getClaimsPage, getToken, getWarranties, recordClaimReceipt, transcribeClaimAudio, updateClaimStatus, uploadClaimEvidencePhoto, type Claim, type Warranty, type Paginated } from "../lib/api";
 import { getClaimPhoto, saveClaimPhoto } from "../lib/claimPhotos";
 import { TableSkeleton } from "../components/LoadingState";
 
 const MAX_PHOTO_SIZE = 5 * 1024 * 1024;
-const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const ALLOWED_PHOTO_TYPES = ["image/jpeg", "image/png"];
 
 const statusLabels: Record<string, string> = {
     received: "Diterima",
@@ -58,6 +58,10 @@ export default function ClaimsPage() {
     const [selectedClaimPhoto, setSelectedClaimPhoto] = useState<{ claimCode: string; url: string } | null>(null);
     const [photoRefresh, setPhotoRefresh] = useState(0);
     const [photoFeedback, setPhotoFeedback] = useState("");
+    const [isPhotoUploading, setIsPhotoUploading] = useState(false);
+    const [isReceiptSaving, setIsReceiptSaving] = useState(false);
+    const [isPdfDownloading, setIsPdfDownloading] = useState(false);
+    const [documentError, setDocumentError] = useState("");
     const photoInputRef = useRef<HTMLInputElement | null>(null);
     const [damageDescription, setDamageDescription] = useState("");
     const [speechTranscript, setSpeechTranscript] = useState("");
@@ -239,7 +243,7 @@ export default function ClaimsPage() {
 
     function validatePhoto(file: File): string | null {
         if (!ALLOWED_PHOTO_TYPES.includes(file.type)) {
-            return "Pilih foto berformat JPG, PNG, atau WEBP.";
+            return "Pilih foto berformat JPG atau PNG.";
         }
         if (file.size > MAX_PHOTO_SIZE) {
             return "Ukuran foto maksimal 5 MB.";
@@ -252,7 +256,7 @@ export default function ClaimsPage() {
         if (validationMessage) throw new Error(validationMessage);
 
         await saveClaimPhoto(claimCode, file);
-        setPhotoFeedback("Foto tersimpan di browser ini dan tidak diunggah ke server.");
+        setPhotoFeedback("Foto tersimpan di server dan browser ini.");
         if (selectedClaim?.claim_code === claimCode) {
             setPhotoRefresh((current) => current + 1);
         }
@@ -289,10 +293,15 @@ export default function ClaimsPage() {
             });
             if (selectedPhoto) {
                 try {
-                    await savePhotoForClaim(createdClaim.claim_code, selectedPhoto);
+                    await uploadClaimEvidencePhoto(createdClaim.id, selectedPhoto);
+                    try {
+                        await savePhotoForClaim(createdClaim.claim_code, selectedPhoto);
+                    } catch (photoStorageError) {
+                        setPhotoFeedback(`Foto berhasil diunggah, tetapi pratinjau lokal gagal disimpan: ${photoStorageError instanceof Error ? photoStorageError.message : "terjadi kesalahan."}`);
+                    }
                 } catch (photoError) {
                     setPhotoFeedback(
-                        `Klaim berhasil dicatat, tetapi foto gagal disimpan: ${photoError instanceof Error ? photoError.message : "terjadi kesalahan."}`,
+                        `Klaim berhasil dicatat, tetapi foto gagal diunggah: ${photoError instanceof Error ? photoError.message : "terjadi kesalahan."}`,
                     );
                 }
             }
@@ -323,6 +332,7 @@ export default function ClaimsPage() {
                 note: String(formData.get("status_note")),
                 ...(nextStatusValue === "forwarded_to_vendor" && {
                     forwarded_date: String(formData.get("forwarded_date")),
+                    shipping_carrier: String(formData.get("shipping_carrier")),
                     vendor_reference_number: String(formData.get("vendor_reference_number")),
                 }),
                 ...(nextStatusValue === "completed" && {
@@ -339,6 +349,94 @@ export default function ClaimsPage() {
             setStatusError(requestError instanceof Error ? requestError.message : "Status klaim tidak dapat diperbarui.");
         } finally {
             setIsStatusSaving(false);
+        }
+    }
+
+    async function handleReceiptSubmit(event: React.FormEvent<HTMLFormElement>) {
+        event.preventDefault();
+        if (!selectedClaim) return;
+        setIsReceiptSaving(true);
+        setDocumentError("");
+        const formData = new FormData(event.currentTarget);
+
+        try {
+            const updatedClaim = await recordClaimReceipt(selectedClaim.id, {
+                received_at: String(formData.get("received_at")),
+                received_condition: String(formData.get("received_condition")),
+                receipt_note: String(formData.get("receipt_note") || ""),
+            });
+            setSelectedClaim(updatedClaim);
+            setClaims((currentClaims) => currentClaims.map((claim) => claim.id === updatedClaim.id ? updatedClaim : claim));
+        } catch (requestError) {
+            setDocumentError(requestError instanceof Error ? requestError.message : "Data penerimaan barang tidak dapat disimpan.");
+        } finally {
+            setIsReceiptSaving(false);
+        }
+    }
+
+    async function downloadPdf(download: () => Promise<Blob>, fileName: string) {
+        setIsPdfDownloading(true);
+        setDocumentError("");
+        try {
+            const blob = await download();
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = fileName;
+            anchor.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (requestError) {
+            setDocumentError(requestError instanceof Error ? requestError.message : "PDF tidak dapat diunduh.");
+        } finally {
+            setIsPdfDownloading(false);
+        }
+    }
+
+    async function handleDownloadVendorDispatch() {
+        if (!selectedClaim) return;
+        setIsPdfDownloading(true);
+        setDocumentError("");
+        try {
+            const localPhoto = await getClaimPhoto(selectedClaim.claim_code);
+            if (localPhoto) {
+                const file = new File([localPhoto.file], localPhoto.fileName, { type: localPhoto.contentType });
+                await uploadClaimEvidencePhoto(selectedClaim.id, file);
+            }
+            const blob = await downloadClaimVendorDispatch(selectedClaim.id);
+            const url = URL.createObjectURL(blob);
+            const anchor = document.createElement("a");
+            anchor.href = url;
+            anchor.download = `bukti-pengiriman-vendor-${selectedClaim.claim_code}.pdf`;
+            anchor.click();
+            window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+        } catch (requestError) {
+            setDocumentError(requestError instanceof Error ? requestError.message : "PDF pengiriman vendor tidak dapat diunduh.");
+        } finally {
+            setIsPdfDownloading(false);
+        }
+    }
+
+    async function handleEvidencePhotoUpload(file: File) {
+        if (!selectedClaim) return;
+        const validationMessage = validatePhoto(file);
+        if (validationMessage) {
+            setPhotoFeedback(validationMessage);
+            return;
+        }
+        setIsPhotoUploading(true);
+        setPhotoFeedback("");
+        try {
+            await uploadClaimEvidencePhoto(selectedClaim.id, file);
+            try {
+                await savePhotoForClaim(selectedClaim.claim_code, file);
+                setPhotoFeedback("Foto bukti berhasil diunggah ke server.");
+            } catch (photoStorageError) {
+                setPhotoFeedback(`Foto berhasil diunggah, tetapi pratinjau lokal gagal disimpan: ${photoStorageError instanceof Error ? photoStorageError.message : "terjadi kesalahan."}`);
+            }
+        } catch (requestError) {
+            setPhotoFeedback(requestError instanceof Error ? requestError.message : "Foto bukti gagal diunggah.");
+        } finally {
+            setIsPhotoUploading(false);
         }
     }
 
@@ -398,7 +496,7 @@ export default function ClaimsPage() {
                                     <td><strong>{claim.product?.name || "-"}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td>
                                     <td>{new Date(claim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "short", year: "numeric" })}</td>
                                     <td><span className={`status-badge status-${claim.status}`}>{statusLabels[claim.status] || claim.status}</span></td>
-                                    <td><button className="table-action" type="button" onClick={() => { setSelectedClaim(claim); setNextStatus(""); setStatusError(""); }}>Detail →</button></td>
+                                    <td><button className="table-action" type="button" onClick={() => { setSelectedClaim(claim); setNextStatus(""); setStatusError(""); setDocumentError(""); setPhotoFeedback(""); }}>Detail →</button></td>
                                 </tr>
                             ))}</tbody>
                         </table>}
@@ -417,6 +515,7 @@ export default function ClaimsPage() {
                     {formError && <p className="form-error" role="alert">{formError}</p>}
                     <form onSubmit={handleSubmit}>
                         <label>Garansi / nomor serial<select name="warranty_id" required defaultValue=""><option value="" disabled>Pilih garansi yang berlaku</option>{warranties.map((warranty) => <option key={warranty.id} value={warranty.id}>{warranty.product_unit.serial_number} — {warranty.product_unit.product?.name || "Produk"} / {warranty.product_unit.customer?.name || "Tanpa pelanggan"}{warranty.status === "expiring" ? " (Segera berakhir)" : ""}</option>)}</select></label>
+                        <p className="out-of-warranty-note">Produk dengan masa garansi yang sudah berakhir dapat diajukan ke <Link href="/paid-services">servis berbayar</Link>.</p>
                         <label>Tanggal klaim<input name="claim_date" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} /></label>
                         <section className="voice-entry" aria-label="Rekam dan susun keluhan">
                             <label>Ucapan klien<textarea value={speechTranscript} onChange={(event) => setSpeechTranscript(event.target.value)} placeholder="Hasil rekaman akan muncul di sini dan bisa diedit." rows={3} maxLength={10000} /></label>
@@ -432,10 +531,10 @@ export default function ClaimsPage() {
                         <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan kerusakan produk." rows={4} required value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} /></label>
                         <section className="photo-upload-section" aria-labelledby="claim-photo-label">
                             <div className="photo-upload-heading">
-                                <label id="claim-photo-label">Foto bukti kerusakan <span className="photo-upload-hint">Opsional · JPG, PNG, WEBP · maksimal 5 MB</span></label>
+                                <label id="claim-photo-label">Foto bukti kerusakan <span className="photo-upload-hint">Opsional · JPG atau PNG · maksimal 5 MB</span></label>
                             </div>
                             <div className="photo-picker">
-                                <input ref={photoInputRef} className="photo-file-input" id="claim-photo-input" name="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                                <input ref={photoInputRef} className="photo-file-input" id="claim-photo-input" name="photo" type="file" accept="image/jpeg,image/png" onChange={(event) => {
                                     const file = event.target.files?.[0] || null;
                                     if (file) {
                                         const validationMessage = validatePhoto(file);
@@ -456,7 +555,7 @@ export default function ClaimsPage() {
                                     <button className="photo-file-remove" type="button" onClick={() => { setSelectedPhoto(null); if (photoInputRef.current) photoInputRef.current.value = ""; }}>Hapus</button>
                                 </div> : <p className="photo-picker-empty">Belum ada file yang dipilih.</p>}
                             </div>
-                            <p className="photo-storage-note">Foto tersimpan di browser ini saja; tidak diunggah ke server.</p>
+                            <p className="photo-storage-note">Foto akan diunggah ke server saat klaim disimpan. JPG atau PNG, maksimal 5 MB.</p>
                         </section>
                         <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving || isRecording || isTranscribing}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || isRecording || isTranscribing || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
                     </form>
@@ -468,22 +567,44 @@ export default function ClaimsPage() {
                     <p className="dashboard-kicker">DETAIL KLAIM</p>
                     <h2 id="claim-detail-title">{selectedClaim.claim_code}</h2>
                     <span className={`status-badge status-${selectedClaim.status}`}>{statusLabels[selectedClaim.status] || selectedClaim.status}</span>
+                    <div className="claim-detail-actions">
+                        <button className="secondary-action print-claim-action" type="button" onClick={() => window.print()}>Cetak / Simpan PDF</button>
+                    </div>
+                    {documentError && <p className="form-error" role="alert">{documentError}</p>}
                     <div className="claim-detail-grid">
                         <div><small>Pelanggan</small><strong>{selectedClaim.customer?.name || "-"}</strong></div>
                         <div><small>Produk</small><strong>{selectedClaim.product?.name || "-"}</strong></div>
                         <div><small>Nomor serial</small><strong>{selectedClaim.serial_number || "-"}</strong></div>
                         <div><small>Tanggal klaim</small><strong>{new Date(selectedClaim.claim_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong></div>
+                        {selectedClaim.vendor && <div><small>Vendor</small><strong>{selectedClaim.vendor.name}</strong></div>}
+                        {selectedClaim.forwarded_date && <div><small>Tanggal diteruskan ke vendor</small><strong>{new Date(selectedClaim.forwarded_date).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}</strong></div>}
+                        {selectedClaim.shipping_carrier && <div><small>Kurir</small><strong>{selectedClaim.shipping_carrier}</strong></div>}
+                        {selectedClaim.vendor_reference_number && <div><small>Nomor Resi</small><strong>{selectedClaim.vendor_reference_number}</strong></div>}
                     </div>
                     <div className="claim-detail-note"><small>Poin keluhan</small><p>{selectedClaim.damage_description || "Belum ada poin keluhan."}</p></div>
                     {selectedClaim.client_statement && <div className="claim-detail-note"><small>Ucapan klien</small><p>{selectedClaim.client_statement}</p></div>}
-                    <div className="claim-detail-photo"><small>Foto bukti kerusakan</small>{selectedClaimPhoto?.claimCode === selectedClaim.claim_code ? <a href={selectedClaimPhoto.url} target="_blank" rel="noreferrer"><Image src={selectedClaimPhoto.url} alt={`Foto bukti klaim ${selectedClaim.claim_code}`} width={720} height={480} unoptimized /></a> : <p>Belum ada foto bukti yang tersimpan di browser ini.</p>}{photoFeedback && <p className="photo-feedback" role="status">{photoFeedback}</p>}<div className="photo-picker detail-photo-picker"><input className="photo-file-input" id={`detail-photo-${selectedClaim.id}`} type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => {
+                    <div className="claim-detail-photo"><small>Foto bukti kerusakan</small>{selectedClaimPhoto?.claimCode === selectedClaim.claim_code ? <a href={selectedClaimPhoto.url} target="_blank" rel="noreferrer"><Image src={selectedClaimPhoto.url} alt={`Foto bukti klaim ${selectedClaim.claim_code}`} width={720} height={480} unoptimized /></a> : <p>Pratinjau lokal tidak tersedia. Unggah foto di bawah ini jika perlu menambah atau mengganti foto.</p>}{photoFeedback && <p className="photo-feedback" role="status">{photoFeedback}</p>}<div className="photo-picker detail-photo-picker"><input className="photo-file-input" id={`detail-photo-${selectedClaim.id}`} type="file" accept="image/jpeg,image/png" disabled={isPhotoUploading} onChange={(event) => {
                         const file = event.target.files?.[0];
                         if (!file) return;
                         event.target.value = "";
-                        savePhotoForClaim(selectedClaim.claim_code, file).catch((photoError: unknown) => {
-                            setPhotoFeedback(photoError instanceof Error ? photoError.message : "Foto gagal disimpan.");
-                        });
-                    }} /><label className="photo-picker-label" htmlFor={`detail-photo-${selectedClaim.id}`}><span className="photo-picker-browse">Pilih file</span><span className="photo-picker-filename">JPG, PNG, WEBP · maks 5 MB</span></label></div><span className="photo-storage-note">Foto lokal untuk browser ini saja; tidak dikirim ke server.</span></div>
+                        void handleEvidencePhotoUpload(file);
+                    }} /><label className="photo-picker-label" htmlFor={`detail-photo-${selectedClaim.id}`}><span className="photo-picker-browse">{isPhotoUploading ? "Mengunggah..." : "Pilih file"}</span><span className="photo-picker-filename">JPG atau PNG · maks 5 MB</span></label></div><span className="photo-storage-note">Foto diunggah ke server agar dapat disertakan dalam PDF pengiriman vendor.</span></div>
+                    <section className="status-update-form">
+                        <p className="dashboard-kicker">BUKTI PENERIMAAN</p>
+                        <h3>Barang diterima dari pelanggan</h3>
+                        <form onSubmit={handleReceiptSubmit}>
+                            <label>Tanggal barang diterima<input name="received_at" type="date" required defaultValue={selectedClaim.received_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)} /></label>
+                            <label>Kondisi barang saat diterima<textarea name="received_condition" rows={3} required defaultValue={selectedClaim.received_condition || ""} placeholder="Catat kondisi fisik barang..." /></label>
+                            <label>Catatan penerimaan<textarea name="receipt_note" rows={2} defaultValue={selectedClaim.receipt_note || ""} /></label>
+                            <button className="primary-action" type="submit" disabled={isReceiptSaving}>{isReceiptSaving ? "Menyimpan..." : "Simpan data penerimaan"}</button>
+                        </form>
+                        {selectedClaim.received_at && <button className="secondary-action" type="button" disabled={isPdfDownloading} onClick={() => void downloadPdf(() => downloadClaimReceipt(selectedClaim.id), `bukti-penerimaan-${selectedClaim.claim_code}.pdf`)}>{isPdfDownloading ? "Mengunduh..." : "Unduh PDF tanda terima"}</button>}
+                    </section>
+                    {selectedClaim.forwarded_date && <section className="status-update-form">
+                        <p className="dashboard-kicker">PENGIRIMAN VENDOR</p>
+                        <h3>Dokumen pengiriman</h3>
+                        <button className="secondary-action" type="button" disabled={isPdfDownloading} onClick={() => void handleDownloadVendorDispatch()}>{isPdfDownloading ? "Mengunduh..." : "Unduh PDF pengiriman vendor"}</button>
+                    </section>}
                     {selectedClaim.note && <div className="claim-detail-note"><small>Catatan</small><p>{selectedClaim.note}</p></div>}
                     <section className="claim-timeline" aria-label="Riwayat status klaim">
                         <div className="section-heading"><div><p className="dashboard-kicker">RIWAYAT</p><h3>Perjalanan klaim</h3></div></div>
@@ -495,7 +616,8 @@ export default function ClaimsPage() {
                         <label>Status berikutnya<select name="status" required value={nextStatus} onChange={(event) => setNextStatus(event.target.value)}><option value="" disabled>Pilih status</option>{nextStatusOptions[selectedClaim.status].map((option) => <option key={option} value={option}>{statusLabels[option]}</option>)}</select></label>
                         {nextStatus === "forwarded_to_vendor" && <>
                             <label>Tanggal diteruskan<input name="forwarded_date" type="date" required /></label>
-                            <label>Nomor referensi vendor<input name="vendor_reference_number" required placeholder="Masukkan nomor referensi" /></label>
+                            <label>Kurir / ekspedisi<input name="shipping_carrier" required maxLength={255} placeholder="Contoh: JNE, J&T, kurir toko" /></label>
+                            <label>Nomor Resi<input name="vendor_reference_number" required placeholder="Masukkan nomor resi" /></label>
                         </>}
                         {nextStatus === "completed" && <>
                             <label>Tanggal selesai<input name="resolution_date" type="date" required /></label>

@@ -58,6 +58,10 @@ Jika perlu, buat file `.env.local` dengan contoh:
 NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ```
 
-Foto bukti klaim saat ini hanya disimpan di IndexedDB browser yang digunakan admin. Foto tidak dikirim ke backend, tidak tersinkron antarperangkat, dan dapat hilang jika data browser dihapus. Format yang didukung JPG, PNG, dan WEBP dengan ukuran maksimal 5 MB.
+Foto bukti klaim diunggah ke backend dan dapat disertakan dalam PDF pengiriman vendor. Format yang didukung JPG dan PNG dengan ukuran maksimal 5 MB. Pratinjau foto juga disimpan di IndexedDB browser admin; pratinjau lokal tidak tersinkron antarperangkat.
+
+Detail klaim menyediakan pencatatan barang diterima dan unduhan PDF tanda terima. Setelah klaim diteruskan ke vendor, admin dapat mengunduh PDF pengiriman yang memuat foto bukti dari backend. Tombol cetak detail menggunakan dialog cetak browser.
+
+Permintaan servis berbayar dapat dibuat untuk unit terdaftar yang tidak memiliki garansi aktif maupun perangkat yang belum terdaftar. Untuk perangkat manual, nama dan nomor telepon pelanggan serta nama produk perlu dicatat.
 
 Pada form klaim, rekaman suara klien otomatis dikirim ke endpoint transkripsi lokal backend. Hasil ucapan disimpan bersama poin keluhan pada klaim. Perekaman memerlukan izin mikrofon dan konfigurasi Whisper lokal di backend; poin otomatis saat ini berupa kalimat transkrip yang diformat sebagai daftar, bukan ringkasan AI.

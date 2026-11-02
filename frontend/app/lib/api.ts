@@ -16,12 +16,16 @@ export type Claim = {
   client_statement?: string | null;
   note?: string | null;
   forwarded_date?: string | null;
+  shipping_carrier?: string | null;
   vendor_reference_number?: string | null;
+  received_at?: string | null;
+  received_condition?: string | null;
+  receipt_note?: string | null;
   resolution_date?: string | null;
   resolution_note?: string | null;
   status_logs?: ClaimStatusLog[];
   status: string;
-  customer?: { name: string };
+  customer?: { name: string; phone?: string };
   product?: { name: string };
   vendor?: { name: string };
 };
@@ -45,7 +49,11 @@ export type ProductUnit = {
 
 export type PaidServiceRequest = {
   id: number;
-  product_unit: ProductUnit;
+  product_unit: ProductUnit | null;
+  customer_name: string | null;
+  customer_phone: string | null;
+  product_name: string | null;
+  serial_number: string | null;
   vendor: Pick<Vendor, "id" | "name"> | null;
   issue_description: string;
   quoted_amount: string | null;
@@ -220,7 +228,11 @@ export function getExpiredWarrantyUnits(): Promise<ProductUnit[]> {
 }
 
 export function createPaidServiceRequest(input: {
-  product_unit_id: number;
+  product_unit_id?: number;
+  customer_name?: string;
+  customer_phone?: string;
+  product_name?: string;
+  serial_number?: string;
   vendor_id?: number | null;
   issue_description: string;
   quoted_amount?: number | null;
@@ -373,6 +385,7 @@ export function updateClaimStatus(input: {
   status: string;
   note: string;
   forwarded_date?: string;
+  shipping_carrier?: string;
   vendor_reference_number?: string;
   resolution_date?: string;
   resolution_note?: string;
@@ -382,6 +395,53 @@ export function updateClaimStatus(input: {
     method: "PATCH",
     body: JSON.stringify(body),
   });
+}
+
+export function recordClaimReceipt(id: number, input: {
+  received_at: string;
+  received_condition: string;
+  receipt_note?: string;
+}): Promise<Claim> {
+  return request<Claim>(`/claims/${id}/receipt`, {
+    method: "PATCH",
+    body: JSON.stringify(input),
+  });
+}
+
+export function uploadClaimEvidencePhoto(id: number, photo: File): Promise<{ message: string }> {
+  const formData = new FormData();
+  formData.append("photo", photo);
+  return request<{ message: string }>(`/claims/${id}/evidence-photo`, {
+    method: "POST",
+    body: formData,
+  });
+}
+
+async function downloadClaimPdf(path: string): Promise<Blob> {
+  const headers = new Headers({ Accept: "application/pdf, application/json" });
+  const token = getToken();
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_URL}${path}`, { headers });
+  if (!response.ok) {
+    if (response.status === 401) clearToken();
+    const data = (await response.json().catch(() => ({}))) as {
+      message?: string;
+      errors?: Record<string, string[]>;
+    };
+    const validationMessage = data.errors ? Object.values(data.errors).flat()[0] : undefined;
+    throw new Error(validationMessage || data.message || "PDF klaim tidak dapat diunduh.");
+  }
+
+  return response.blob();
+}
+
+export function downloadClaimReceipt(id: number): Promise<Blob> {
+  return downloadClaimPdf(`/claims/${id}/receipt`);
+}
+
+export function downloadClaimVendorDispatch(id: number): Promise<Blob> {
+  return downloadClaimPdf(`/claims/${id}/vendor-dispatch`);
 }
 
 export function logout(): Promise<{ message: string }> {
