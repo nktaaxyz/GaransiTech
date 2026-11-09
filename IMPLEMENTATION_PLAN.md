@@ -97,8 +97,8 @@ Pekerjaan:
 
 - [x] Konfirmasi bahwa hanya Admin Toko yang login.
 - [x] Konfirmasi bahwa transaksi penjualan umum tidak dicatat.
-- [ ] Tentukan ambang “akan berakhir”, misalnya 30 hari sebelum tanggal berakhir.
-- [ ] Tentukan apakah satu unit dapat memiliki lebih dari satu periode garansi.
+- [x] Tentukan ambang “akan berakhir”: 30 hari sebelum tanggal berakhir.
+- [x] Tentukan apakah satu unit dapat memiliki lebih dari satu periode garansi: tidak, satu garansi per unit.
 - [x] Tentukan status klaim final dan aturan klaim berulang.
 
 Output:
@@ -414,12 +414,12 @@ Pekerjaan:
 - [x] Sediakan cara untuk merekam suara melalui browser.
 - [x] Ubah suara menjadi teks transkrip berbahasa Indonesia menggunakan pengenal suara browser.
 - [x] Siapkan endpoint autentikasi dan UI untuk meminta pembuatan poin dari transkrip.
-- [ ] Susun isi transkrip menjadi poin-poin yang mudah dibaca.
+- [x] Susun isi transkrip menjadi poin-poin yang mudah dibaca.
 - [x] Izinkan admin meninjau dan mengedit transkrip sebelum digunakan.
-- [ ] Isi deskripsi klaim dengan poin-poin hasil AI yang sudah ditinjau.
+- [x] Isi deskripsi klaim dengan poin-poin hasil AI yang sudah ditinjau.
 - [x] Tangani izin mikrofon, suara yang tidak jelas, dan kegagalan transkripsi.
 - [x] Pastikan klaim tetap dapat dibuat atau diisi manual tanpa fitur suara.
-- [ ] Konfigurasikan provider AI agar endpoint dapat menghasilkan poin secara otomatis.
+- [x] Konfigurasikan provider Gemini agar endpoint dapat menghasilkan poin secara otomatis.
 
 Kriteria selesai:
 

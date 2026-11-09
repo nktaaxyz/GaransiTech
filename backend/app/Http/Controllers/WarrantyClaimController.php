@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Models\ClaimStatusLog;
 use App\Models\Warranty;
 use App\Models\Warranty_claims;
+use App\Services\ClaimSummaryUnavailableException;
+use App\Services\GeminiClaimSummarizer;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
@@ -26,15 +28,27 @@ class WarrantyClaimController extends Controller
         'rejected',
     ];
 
-    public function summarize(Request $request): JsonResponse
+    public function summarize(Request $request, GeminiClaimSummarizer $summarizer): JsonResponse
     {
-        $request->validate([
+        $validated = $request->validate([
             'transcript' => ['required', 'string', 'max:10000'],
         ]);
 
-        return response()->json([
-            'message' => 'Layanan AI belum dikonfigurasi.',
-        ], 503);
+        if (! $summarizer->isConfigured()) {
+            return response()->json([
+                'message' => 'Layanan AI belum dikonfigurasi. Isi GEMINI_API_KEY di backend/.env.',
+            ], 503);
+        }
+
+        try {
+            return response()->json([
+                'summary' => $summarizer->summarize($validated['transcript']),
+            ]);
+        } catch (ClaimSummaryUnavailableException) {
+            return response()->json([
+                'message' => 'AI belum dapat membuat poin kerusakan. Silakan coba lagi atau isi secara manual.',
+            ], 502);
+        }
     }
 
     public function index(Request $request): JsonResponse
@@ -149,6 +163,7 @@ class WarrantyClaimController extends Controller
 
         return Pdf::loadView('pdf.claim-receipt', [
             'claim' => $claim,
+            'logoDataUri' => $this->createRidhomeLogoDataUri(),
         ])
             ->setPaper('a4')
             ->download("bukti-penerimaan-{$claim->claim_code}.pdf");
@@ -175,6 +190,7 @@ class WarrantyClaimController extends Controller
             'claim' => $claim,
             'copies' => ['Vendor', 'Arsip Toko'],
             'photoDataUri' => $photoDataUri,
+            'logoDataUri' => $this->createRidhomeLogoDataUri(),
         ])
             ->setPaper('a4')
             ->download("bukti-pengiriman-vendor-{$claim->claim_code}.pdf");
@@ -225,6 +241,16 @@ class WarrantyClaimController extends Controller
         }
 
         return 'data:image/jpeg;base64,'.base64_encode($image);
+    }
+
+    private function createRidhomeLogoDataUri(): string
+    {
+        $logo = file_get_contents(public_path('ridhome-logo.jpeg'));
+        if ($logo === false) {
+            throw new \RuntimeException('Logo RIDHOME tidak dapat dibaca untuk PDF.');
+        }
+
+        return 'data:image/jpeg;base64,'.base64_encode($logo);
     }
 
     public function uploadEvidencePhoto(Request $request, Warranty_claims $claim): JsonResponse

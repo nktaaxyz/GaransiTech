@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { createClaim, downloadClaimReceipt, downloadClaimVendorDispatch, getClaimsPage, getToken, getWarranties, recordClaimReceipt, transcribeClaimAudio, updateClaimStatus, uploadClaimEvidencePhoto, type Claim, type Warranty, type Paginated } from "../lib/api";
+import { createClaim, downloadClaimReceipt, downloadClaimVendorDispatch, getClaimsPage, getToken, getWarranties, recordClaimReceipt, summarizeClaimTranscript, transcribeClaimAudio, updateClaimStatus, uploadClaimEvidencePhoto, type Claim, type Warranty, type Paginated } from "../lib/api";
 import { getClaimPhoto, saveClaimPhoto } from "../lib/claimPhotos";
 import { TableSkeleton } from "../components/LoadingState";
 
@@ -67,6 +67,7 @@ export default function ClaimsPage() {
     const [speechTranscript, setSpeechTranscript] = useState("");
     const [isRecording, setIsRecording] = useState(false);
     const [isTranscribing, setIsTranscribing] = useState(false);
+    const [isSummarizing, setIsSummarizing] = useState(false);
     const [voiceError, setVoiceError] = useState("");
     const mediaRecorderRef = useRef<MediaRecorder | null>(null);
     const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -140,7 +141,13 @@ export default function ClaimsPage() {
                     const transcript = result.text.trim();
                     if (!transcript) throw new Error("Transkrip kosong. Silakan rekam ulang.");
                     setSpeechTranscript(transcript);
-                    setDamageDescription(transcriptToBulletPoints(transcript));
+                    try {
+                        const summary = await summarizeClaimTranscript(transcript);
+                        setDamageDescription(summary.summary);
+                    } catch (summaryError) {
+                        setDamageDescription(transcriptToBulletPoints(transcript));
+                        setVoiceError(`Transkrip berhasil, tetapi rangkuman AI gagal: ${summaryError instanceof Error ? summaryError.message : "terjadi kesalahan."} Poin dari transkrip dapat diedit manual.`);
+                    }
                 } catch (requestError) {
                     setVoiceError(requestError instanceof Error ? requestError.message : "Audio belum dapat ditranskripsikan.");
                 } finally {
@@ -273,10 +280,29 @@ export default function ClaimsPage() {
         setSpeechTranscript("");
     }
 
+    async function handleSummarizeTranscript() {
+        const transcript = speechTranscript.trim();
+        if (!transcript) {
+            setVoiceError("Isi transkrip terlebih dahulu sebelum meminta rangkuman AI.");
+            return;
+        }
+
+        setIsSummarizing(true);
+        setVoiceError("");
+        try {
+            const result = await summarizeClaimTranscript(transcript);
+            setDamageDescription(result.summary);
+        } catch (requestError) {
+            setVoiceError(requestError instanceof Error ? requestError.message : "Rangkuman AI gagal. Silakan isi poin keluhan secara manual.");
+        } finally {
+            setIsSummarizing(false);
+        }
+    }
+
     async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
         event.preventDefault();
-        if (isRecording || isTranscribing) {
-            setVoiceError("Tunggu sampai perekaman dan transkripsi selesai sebelum menyimpan klaim.");
+        if (isRecording || isTranscribing || isSummarizing) {
+            setVoiceError("Tunggu sampai pemrosesan suara dan rangkuman selesai sebelum menyimpan klaim.");
             return;
         }
         setIsSaving(true);
@@ -506,9 +532,9 @@ export default function ClaimsPage() {
                 </section>
             </section>
 
-            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => { if (!isSaving && !isRecording && !isTranscribing) closeClaimForm(); }}>
+            {isFormOpen && <div className="modal-backdrop" role="presentation" onClick={() => { if (!isSaving && !isRecording && !isTranscribing && !isSummarizing) closeClaimForm(); }}>
                 <section className="claim-modal" role="dialog" aria-modal="true" aria-labelledby="claim-modal-title" onClick={(event) => event.stopPropagation()}>
-                    <button className="modal-close" type="button" onClick={closeClaimForm} disabled={isSaving || isRecording || isTranscribing} aria-label="Tutup">×</button>
+                    <button className="modal-close" type="button" onClick={closeClaimForm} disabled={isSaving || isRecording || isTranscribing || isSummarizing} aria-label="Tutup">×</button>
                     <p className="dashboard-kicker">KLAIM BARU</p>
                     <h2 id="claim-modal-title">Catat klaim garansi</h2>
                     <p className="modal-description">{warranties.length > 0 ? "Pilih garansi yang masa berlakunya mencakup tanggal klaim." : <>Belum ada garansi yang berlaku. <Link href="/warranties">Daftarkan garansi</Link> terlebih dahulu.</>}</p>
@@ -520,12 +546,15 @@ export default function ClaimsPage() {
                         <section className="voice-entry" aria-label="Rekam dan susun keluhan">
                             <label>Ucapan klien<textarea value={speechTranscript} onChange={(event) => setSpeechTranscript(event.target.value)} placeholder="Hasil rekaman akan muncul di sini dan bisa diedit." rows={3} maxLength={10000} /></label>
                             <div className="voice-entry-actions">
-                                <button className={`voice-record-button${isRecording ? " is-recording" : ""}`} type="button" onClick={toggleVoiceRecording} disabled={isSaving || isTranscribing}>
+                                <button className={`voice-record-button${isRecording ? " is-recording" : ""}`} type="button" onClick={toggleVoiceRecording} disabled={isSaving || isTranscribing || isSummarizing}>
                                     <span className="voice-record-indicator" aria-hidden="true" />
-                                    {isRecording ? "Selesai & transkripsikan" : isTranscribing ? "Mentranskripsikan..." : speechTranscript ? "Rekam ulang" : "Rekam & transkrip"}
+                                    {isRecording ? "Selesai & transkripsikan" : isTranscribing ? "Memproses audio & AI..." : speechTranscript ? "Rekam ulang" : "Rekam & transkrip"}
+                                </button>
+                                <button className="voice-record-button" type="button" onClick={handleSummarizeTranscript} disabled={isSaving || isRecording || isTranscribing || isSummarizing}>
+                                    {isSummarizing ? "Membuat poin..." : "Buat poin dengan AI"}
                                 </button>
                             </div>
-                            <p className="voice-entry-hint">Tekan tombol yang sama untuk mulai dan mengakhiri rekaman. Transkrip dan poin keluhan akan terisi otomatis.</p>
+                            <p className="voice-entry-hint">Tekan tombol rekam untuk mulai dan mengakhiri rekaman. Transkrip diringkas AI secara otomatis; Anda juga dapat membuat ulang poin dari transkrip yang diedit.</p>
                             {voiceError && <p className="form-error" role="alert">{voiceError}</p>}
                         </section>
                         <label>Deskripsi kerusakan<textarea name="damage_description" placeholder="Jelaskan kerusakan produk." rows={4} required value={damageDescription} onChange={(event) => setDamageDescription(event.target.value)} /></label>
@@ -557,13 +586,14 @@ export default function ClaimsPage() {
                             </div>
                             <p className="photo-storage-note">Foto akan diunggah ke server saat klaim disimpan. JPG atau PNG, maksimal 5 MB.</p>
                         </section>
-                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving || isRecording || isTranscribing}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || isRecording || isTranscribing || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
+                        <div className="modal-actions"><button className="secondary-action" type="button" onClick={closeClaimForm} disabled={isSaving || isRecording || isTranscribing || isSummarizing}>Batal</button><button className="primary-action" type="submit" disabled={isSaving || isRecording || isTranscribing || isSummarizing || warranties.length === 0}>{isSaving ? "Menyimpan..." : "Simpan klaim"}</button></div>
                     </form>
                 </section>
             </div>}
             {selectedClaim && <div className="modal-backdrop" role="presentation" onClick={() => setSelectedClaim(null)}>
                 <section className="claim-modal claim-detail-modal" role="dialog" aria-modal="true" aria-labelledby="claim-detail-title" onClick={(event) => event.stopPropagation()}>
                     <button className="modal-close" type="button" onClick={() => setSelectedClaim(null)} aria-label="Tutup">×</button>
+                    <div className="claim-print-brand"><Image src="/ridhome-logo.jpeg" alt="RIDHOME IT consultant & wireless shop" width={640} height={200} priority /></div>
                     <p className="dashboard-kicker">DETAIL KLAIM</p>
                     <h2 id="claim-detail-title">{selectedClaim.claim_code}</h2>
                     <span className={`status-badge status-${selectedClaim.status}`}>{statusLabels[selectedClaim.status] || selectedClaim.status}</span>
@@ -590,7 +620,7 @@ export default function ClaimsPage() {
                         void handleEvidencePhotoUpload(file);
                     }} /><label className="photo-picker-label" htmlFor={`detail-photo-${selectedClaim.id}`}><span className="photo-picker-browse">{isPhotoUploading ? "Mengunggah..." : "Pilih file"}</span><span className="photo-picker-filename">JPG atau PNG · maks 5 MB</span></label></div><span className="photo-storage-note">Foto diunggah ke server agar dapat disertakan dalam PDF pengiriman vendor.</span></div>
                     <section className="status-update-form">
-                        <p className="dashboard-kicker">BUKTI PENERIMAAN</p>
+                        <p className="dashboard-kicker">TANDA TERIMA</p>
                         <h3>Barang diterima dari pelanggan</h3>
                         <form onSubmit={handleReceiptSubmit}>
                             <label>Tanggal barang diterima<input name="received_at" type="date" required defaultValue={selectedClaim.received_at?.slice(0, 10) || new Date().toISOString().slice(0, 10)} /></label>

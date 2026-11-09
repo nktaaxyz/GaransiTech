@@ -56,6 +56,8 @@ If you discover a security vulnerability within Laravel, please send an e-mail t
 
 ## Local audio transcription
 
+Warranty rules: each product unit can have only one warranty period. The API validates this and the database enforces it with a unique constraint. A warranty is marked as expiring during its final 30 days (configurable with `WARRANTY_EXPIRING_DAYS`).
+
 `POST /api/claims/transcribe` accepts an authenticated multipart upload with an `audio` field and returns `{"text":"...","language":"id"}`. Audio is processed locally; it is not sent to an external AI service. Supported uploads are FLAC, MP3, M4A, OGG, WAV, and WebM, up to 20 MB. The endpoint is limited to three requests per minute.
 
 The backend server must have FFmpeg and a `whisper.cpp` `whisper-cli` executable installed, along with a multilingual Whisper model. Set these paths in `backend/.env`:
@@ -67,7 +69,9 @@ LOCAL_WHISPER_MODEL='C:\path\to\ggml-base.bin'
 LOCAL_WHISPER_TIMEOUT=180
 ```
 
-Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The claim form records audio and sends it to this endpoint when recording stops. The client statement is stored separately from the bullet-formatted damage description. Run `php artisan migrate` to add the `client_statement` column. Automatic bullet formatting does not use an AI summarization service; `/api/claims/summarize` remains unavailable until one is configured.
+Audio uploads are converted to temporary 16 kHz mono WAV files before transcription. Temporary files are removed after processing. The claim form records audio and sends it to this endpoint when recording stops. The client statement is stored separately from the damage description. Run `php artisan migrate` to add the `client_statement` column.
+
+Claim transcript summarization uses Google's Gemini API. Set `GEMINI_API_KEY` in `backend/.env`; `GEMINI_MODEL` defaults to `gemini-3.8-flash`. The authenticated `POST /api/claims/summarize` endpoint accepts `{"transcript":"..."}` and returns `{"summary":"..."}`. The API key remains on the backend. The form summarizes recordings automatically and also lets admins summarize edited transcripts manually. If Gemini is not configured or unavailable, the form falls back to simple transcript bullets and allows manual editing.
 
 ## Paid service requests
 

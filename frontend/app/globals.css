@@ -2350,7 +2350,18 @@ html[data-theme="dark"] .theme-toggle {
     border-radius: 0 !important;
     box-shadow: none !important;
   }
+  .claim-detail-modal .claim-print-brand {
+    display: block !important;
+    margin-bottom: 8mm;
+  }
+  .claim-detail-modal .claim-print-brand img {
+    display: block;
+    height: auto;
+    max-width: 55mm;
+    width: 100%;
+  }
   .claim-detail-modal .modal-close,
+  .claim-detail-modal .claim-print-brand,
   .claim-detail-actions,
   .status-update-form,
   .detail-photo-picker,

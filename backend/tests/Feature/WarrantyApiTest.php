@@ -28,7 +28,7 @@ class WarrantyApiTest extends TestCase
         Sanctum::actingAs(User::factory()->create());
     }
 
-    private function createProductUnit(): ProductUnit
+    private function createProductUnit(string $serialNumber = 'SN-WARRANTY-001'): ProductUnit
     {
         $vendor = Vendor::create(['name' => 'PT Maju Jaya', 'email' => 'maju@example.com']);
         $product = Product::create([
@@ -44,7 +44,7 @@ class WarrantyApiTest extends TestCase
         return ProductUnit::create([
             'product_id' => $product->id,
             'customer_id' => $customer->id,
-            'serial_number' => 'SN-WARRANTY-001',
+            'serial_number' => $serialNumber,
         ]);
     }
 
@@ -93,7 +93,7 @@ class WarrantyApiTest extends TestCase
         ])->assertCreated();
 
         $second = $this->postJson('/api/warranties', [
-            'product_unit_id' => $unit->id,
+            'product_unit_id' => $this->createProductUnit('SN-WARRANTY-002')->id,
             'start_date' => '2026-09-01',
             'end_date' => '2027-09-01',
         ])->assertCreated();
@@ -104,34 +104,65 @@ class WarrantyApiTest extends TestCase
         );
     }
 
-    public function test_warranty_status_is_active_expiring_or_expired(): void
+    public function test_a_product_unit_can_only_have_one_warranty(): void
     {
         $this->authenticate();
         $unit = $this->createProductUnit();
-
-        Warranty::create([
-            'warranty_code' => 'GAR-ACTIVE',
+        $warrantyData = [
             'product_unit_id' => $unit->id,
             'start_date' => '2026-09-01',
             'end_date' => '2027-09-01',
+        ];
+
+        $this->postJson('/api/warranties', $warrantyData)->assertCreated();
+
+        $this->postJson('/api/warranties', $warrantyData)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors(['product_unit_id']);
+
+        $this->putJson('/api/warranties/1', [
+            ...$warrantyData,
+            'notes' => 'Memperbarui garansi yang sama.',
+        ])->assertOk();
+    }
+
+    public function test_warranty_status_is_active_expiring_or_expired(): void
+    {
+        $this->authenticate();
+
+        Warranty::create([
+            'warranty_code' => 'GAR-ACTIVE',
+            'product_unit_id' => $this->createProductUnit('SN-WARRANTY-ACTIVE')->id,
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-10-24',
         ]);
         Warranty::create([
             'warranty_code' => 'GAR-EXPIRING',
-            'product_unit_id' => $unit->id,
+            'product_unit_id' => $this->createProductUnit('SN-WARRANTY-EXPIRING')->id,
             'start_date' => '2026-09-01',
-            'end_date' => '2026-10-01',
+            'end_date' => '2026-10-23',
+        ]);
+        Warranty::create([
+            'warranty_code' => 'GAR-EXPIRING-TODAY',
+            'product_unit_id' => $this->createProductUnit('SN-WARRANTY-EXPIRING-TODAY')->id,
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-09-23',
         ]);
         Warranty::create([
             'warranty_code' => 'GAR-EXPIRED',
-            'product_unit_id' => $unit->id,
+            'product_unit_id' => $this->createProductUnit('SN-WARRANTY-EXPIRED')->id,
             'start_date' => '2025-09-01',
-            'end_date' => '2026-09-01',
+            'end_date' => '2026-09-22',
         ]);
 
         $this->getJson('/api/warranties')
             ->assertOk()
             ->assertJsonFragment(['status' => 'expiring'])
             ->assertJsonFragment(['status' => 'active']);
+
+        $this->getJson('/api/warranties?status=expiring')
+            ->assertOk()
+            ->assertJsonCount(2, 'data');
 
         $this->getJson('/api/warranties?status=expired')
             ->assertOk()

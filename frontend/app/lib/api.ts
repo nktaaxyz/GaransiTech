@@ -376,6 +376,13 @@ export function transcribeClaimAudio(audio: File): Promise<{ text: string; langu
   });
 }
 
+export function summarizeClaimTranscript(transcript: string): Promise<{ summary: string }> {
+  return request<{ summary: string }>("/claims/summarize", {
+    method: "POST",
+    body: JSON.stringify({ transcript }),
+  });
+}
+
 export function updateClaim(id: number, input: { damage_description: string; claim_date: string }): Promise<Claim> {
   return request<Claim>(`/claims/${id}`, { method: "PATCH", body: JSON.stringify(input) });
 }

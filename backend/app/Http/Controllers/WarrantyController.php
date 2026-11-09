@@ -6,6 +6,7 @@ use App\Models\Warranty;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 
@@ -26,7 +27,9 @@ class WarrantyController extends Controller
             ])
             ->when($statusFilter !== null, function ($query) use ($statusFilter): void {
                 $today = CarbonImmutable::today()->toDateString();
-                $threshold = CarbonImmutable::today()->addDays(30)->toDateString();
+                $threshold = CarbonImmutable::today()
+                    ->addDays((int) config('warranty.expiring_days', 30))
+                    ->toDateString();
 
                 if ($statusFilter === 'expired') {
                     $query->where(function ($warrantyQuery) use ($today): void {
@@ -126,7 +129,7 @@ class WarrantyController extends Controller
     {
         $today = CarbonImmutable::today();
         $endDate = CarbonImmutable::parse($warranty->end_date);
-        $expiringThreshold = $today->addDays(30);
+        $expiringThreshold = $today->addDays((int) config('warranty.expiring_days', 30));
 
         $status = $warranty->getAttribute('has_completed_claim')
             ? 'expired'
@@ -145,7 +148,12 @@ class WarrantyController extends Controller
     private function validatedData(Request $request, ?Warranty $warranty = null): array
     {
         return $request->validate([
-            'product_unit_id' => ['required', 'integer', 'exists:product_units,id'],
+            'product_unit_id' => [
+                'required',
+                'integer',
+                'exists:product_units,id',
+                Rule::unique('warranties', 'product_unit_id')->ignore($warranty?->id),
+            ],
             'start_date' => ['required', 'date'],
             'end_date' => ['required', 'date', 'after_or_equal:start_date'],
             'notes' => ['nullable', 'string'],

@@ -25,6 +25,13 @@
             padding-bottom: 4mm;
         }
 
+        .brand-logo {
+            display: block;
+            height: auto;
+            margin-bottom: 3mm;
+            width: 52mm;
+        }
+
         .eyebrow {
             color: #5273a1;
             font-size: 8pt;
@@ -149,7 +156,8 @@
 @foreach ($copies as $copy)
     <div class="document">
         <header class="header">
-            <p class="eyebrow">GaransiTech · Dokumen Pengiriman</p>
+            <img class="brand-logo" src="{{ $logoDataUri }}" alt="RIDHOME IT consultant & wireless shop">
+            <p class="eyebrow">Dokumen Pengiriman</p>
             <h1>Bukti Pengiriman Klaim ke Vendor</h1>
             <p class="claim-code">Nomor klaim: <strong>{{ $claim->claim_code }}</strong></p>
         </header>

@@ -18,6 +18,13 @@
             font-size: 20px;
         }
 
+        .brand-logo {
+            display: block;
+            height: auto;
+            margin-bottom: 12px;
+            width: 190px;
+        }
+
         h2 {
             margin: 24px 0 8px;
             font-size: 13px;
@@ -84,6 +91,7 @@
     </style>
 </head>
 <body>
+    <img class="brand-logo" src="{{ $logoDataUri }}" alt="RIDHOME IT consultant & wireless shop">
     <h1>Bukti Penerimaan Barang dari Customer</h1>
     <div class="subtitle">Nomor klaim: {{ $claim->claim_code }}</div>
     <div class="copy-label">Salinan untuk Customer</div>

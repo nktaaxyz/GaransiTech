@@ -13,7 +13,7 @@ class DashboardController extends Controller
     public function summary(): JsonResponse
     {
         $today = CarbonImmutable::today();
-        $threshold = $today->addDays(30);
+        $threshold = $today->addDays((int) config('warranty.expiring_days', 30));
 
         return response()->json([
             'warranties' => [
@@ -56,7 +56,7 @@ class DashboardController extends Controller
         ]);
 
         $today = CarbonImmutable::today();
-        $threshold = $today->addDays(30);
+        $threshold = $today->addDays((int) config('warranty.expiring_days', 30));
         $warranties = Warranty::query()
             ->with(['productUnit.product', 'productUnit.customer'])
             ->withExists([

@@ -64,4 +64,4 @@ Detail klaim menyediakan pencatatan barang diterima dan unduhan PDF tanda terima
 
 Permintaan servis berbayar dapat dibuat untuk unit terdaftar yang tidak memiliki garansi aktif maupun perangkat yang belum terdaftar. Untuk perangkat manual, nama dan nomor telepon pelanggan serta nama produk perlu dicatat.
 
-Pada form klaim, rekaman suara klien otomatis dikirim ke endpoint transkripsi lokal backend. Hasil ucapan disimpan bersama poin keluhan pada klaim. Perekaman memerlukan izin mikrofon dan konfigurasi Whisper lokal di backend; poin otomatis saat ini berupa kalimat transkrip yang diformat sebagai daftar, bukan ringkasan AI.
+Pada form klaim, rekaman suara klien otomatis dikirim ke endpoint transkripsi lokal backend, lalu transkrip dirangkum menjadi poin keluhan oleh Gemini. Transkrip dan poin tetap dapat ditinjau serta diedit sebelum disimpan. Perekaman memerlukan izin mikrofon dan konfigurasi Whisper lokal; rangkuman AI memerlukan `GEMINI_API_KEY` pada `backend/.env`. Jika Gemini tidak tersedia, poin sederhana dari transkrip tetap diisikan dan dapat diedit manual.

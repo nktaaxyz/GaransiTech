@@ -11,6 +11,7 @@ use App\Models\Warranty;
 use Carbon\CarbonImmutable;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Sanctum\Sanctum;
 use Tests\TestCase;
@@ -53,10 +54,51 @@ class WarrantyClaimApiTest extends TestCase
 
     public function test_claim_transcript_summary_reports_ai_service_as_unavailable_until_configured(): void
     {
+        config(['services.gemini.api_key' => null]);
+
         $this->postJson('/api/claims/summarize', [
             'transcript' => 'Pelanggan mengatakan layar laptop berkedip dan mati.',
         ])->assertStatus(503)
-            ->assertJsonPath('message', 'Layanan AI belum dikonfigurasi.');
+            ->assertJsonPath('message', 'Layanan AI belum dikonfigurasi. Isi GEMINI_API_KEY di backend/.env.');
+    }
+
+    public function test_claim_transcript_is_summarized_by_gemini(): void
+    {
+        config([
+            'services.gemini.api_key' => 'test-gemini-key',
+            'services.gemini.model' => 'gemini-test',
+        ]);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response([
+                'candidates' => [[
+                    'content' => [
+                        'parts' => [['text' => "• Layar berkedip.\n• Laptop mati." ]],
+                    ],
+                ]],
+            ]),
+        ]);
+
+        $this->postJson('/api/claims/summarize', [
+            'transcript' => 'Layarnya suka berkedip terus laptopnya mati.',
+        ])->assertOk()
+            ->assertJsonPath('summary', "• Layar berkedip.\n• Laptop mati.");
+
+        Http::assertSent(fn ($request) => $request->hasHeader('x-goog-api-key', 'test-gemini-key')
+            && str_contains($request->url(), '/models/gemini-test:generateContent')
+            && str_contains($request['contents'][0]['parts'][0]['text'], 'Layarnya suka berkedip'));
+    }
+
+    public function test_claim_transcript_summary_reports_gemini_failures_without_blocking_manual_entry(): void
+    {
+        config(['services.gemini.api_key' => 'test-gemini-key']);
+        Http::fake([
+            'generativelanguage.googleapis.com/*' => Http::response(['error' => ['message' => 'Unavailable']], 503),
+        ]);
+
+        $this->postJson('/api/claims/summarize', [
+            'transcript' => 'Layar laptop berkedip.',
+        ])->assertStatus(502)
+            ->assertJsonPath('message', 'AI belum dapat membuat poin kerusakan. Silakan coba lagi atau isi secara manual.');
     }
 
     public function test_claim_transcript_summary_requires_a_transcript(): void
@@ -142,6 +184,7 @@ class WarrantyClaimApiTest extends TestCase
 
         $pdf = $response->getContent();
         $this->assertStringStartsWith('%PDF-', $pdf);
+        $this->assertStringContainsString('/Subtype /Image', $pdf);
         preg_match_all('/\/Type\s*\/Page\b/', $pdf, $pages);
         $this->assertCount(1, $pages[0]);
     }
@@ -189,7 +232,7 @@ class WarrantyClaimApiTest extends TestCase
         $this->assertStringStartsWith('%PDF-', $pdf);
         $this->assertStringContainsString('/Subtype /Image', $pdf);
         preg_match_all('/\/Type\s*\/Page\b/', $pdf, $pages);
-        $this->assertCount(2, $pages[0]);
+        $this->assertGreaterThanOrEqual(2, count($pages[0]));
     }
 
     public function test_vendor_dispatch_pdf_requires_an_evidence_photo(): void

@@ -135,8 +135,10 @@ Admin dapat mencari dan memantau garansi
 Status garansi:
 
 - **Aktif**: tanggal hari ini masih berada dalam periode garansi.
-- **Akan berakhir**: tanggal berakhir mendekati batas yang ditentukan sistem.
+- **Akan berakhir**: sisa masa garansi paling lama 30 hari.
 - **Berakhir**: tanggal garansi sudah lewat.
+
+Satu unit produk hanya dapat memiliki satu periode garansi.
 
 ### 7.2 Pengajuan dan Penanganan Klaim
 
