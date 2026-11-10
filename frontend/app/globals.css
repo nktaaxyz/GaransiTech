@@ -483,6 +483,22 @@ a {
   background: #fff0f0;
   color: #c63939;
 }
+.status-quoted {
+  background: #fff6df;
+  color: #a56800;
+}
+.status-approved {
+  background: #e9f8ef;
+  color: #19844a;
+}
+.status-in_progress {
+  background: #eaf2ff;
+  color: #2869dc;
+}
+.status-cancelled {
+  background: #fff0f0;
+  color: #c63939;
+}
 .empty-state,
 .dashboard-state {
   padding: 55px 24px;

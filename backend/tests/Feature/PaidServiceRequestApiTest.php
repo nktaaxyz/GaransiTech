@@ -129,6 +129,36 @@ class PaidServiceRequestApiTest extends TestCase
             ->assertJsonValidationErrors(['customer_name', 'customer_phone', 'product_name']);
     }
 
+    public function test_paid_service_report_filters_by_period_status_and_service_details(): void
+    {
+        Sanctum::actingAs(User::factory()->create());
+        $vendor = Vendor::create(['name' => 'Service Center Report']);
+        $service = $this->postJson('/api/paid-service-requests', [
+            'customer_name' => 'Siti Laporan',
+            'customer_phone' => '081234567890',
+            'product_name' => 'Router Laporan',
+            'serial_number' => 'SN-REPORT',
+            'vendor_id' => $vendor->id,
+            'issue_description' => 'Port ethernet tidak terdeteksi.',
+        ])->assertCreated()
+            ->json();
+
+        $this->patchJson("/api/paid-service-requests/{$service['id']}", [
+            'status' => 'quoted',
+            'quoted_amount' => 250000,
+        ])->assertOk();
+
+        $today = now()->toDateString();
+        $this->getJson("/api/reports/paid-services?from={$today}&to={$today}&status=quoted&search=SN-REPORT")
+            ->assertOk()
+            ->assertJsonPath('total', 1)
+            ->assertJsonPath('data.0.customer_name', 'Siti Laporan')
+            ->assertJsonPath('data.0.product_name', 'Router Laporan')
+            ->assertJsonPath('data.0.vendor.name', 'Service Center Report')
+            ->assertJsonPath('data.0.status', 'quoted')
+            ->assertJsonPath('data.0.quoted_amount', '250000.00');
+    }
+
     private function createUnitWithoutWarranty(): ProductUnit
     {
         $vendor = Vendor::create(['name' => 'Mitra Tanpa Garansi']);

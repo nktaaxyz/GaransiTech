@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Warranty;
 use App\Models\Warranty_claims;
+use App\Models\PaidServiceRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -138,5 +139,41 @@ class DashboardController extends Controller
             ->withQueryString();
 
         return response()->json($claims);
+    }
+
+    public function paidServices(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'from' => ['nullable', 'date'],
+            'to' => ['nullable', 'date', 'after_or_equal:from'],
+            'status' => ['nullable', 'in:requested,quoted,approved,in_progress,completed,cancelled'],
+            'search' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $serviceRequests = PaidServiceRequest::query()
+            ->with(['productUnit.product', 'productUnit.customer', 'vendor'])
+            ->when($validated['from'] ?? null, fn ($query, $from) => $query->whereDate('created_at', '>=', $from))
+            ->when($validated['to'] ?? null, fn ($query, $to) => $query->whereDate('created_at', '<=', $to))
+            ->when($validated['status'] ?? null, fn ($query, $status) => $query->where('status', $status))
+            ->when($validated['search'] ?? null, function ($query, $search): void {
+                $query->where(function ($serviceQuery) use ($search): void {
+                    $serviceQuery->where('customer_name', 'like', "%{$search}%")
+                        ->orWhere('customer_phone', 'like', "%{$search}%")
+                        ->orWhere('product_name', 'like', "%{$search}%")
+                        ->orWhere('serial_number', 'like', "%{$search}%")
+                        ->orWhere('issue_description', 'like', "%{$search}%")
+                        ->orWhereHas('vendor', fn ($vendorQuery) => $vendorQuery->where('name', 'like', "%{$search}%"))
+                        ->orWhereHas('productUnit', function ($unitQuery) use ($search): void {
+                            $unitQuery->where('serial_number', 'like', "%{$search}%")
+                                ->orWhereHas('customer', fn ($customerQuery) => $customerQuery->where('name', 'like', "%{$search}%"))
+                                ->orWhereHas('product', fn ($productQuery) => $productQuery->where('name', 'like', "%{$search}%"));
+                        });
+                });
+            })
+            ->latest()
+            ->paginate(15)
+            ->withQueryString();
+
+        return response()->json($serviceRequests);
     }
 }

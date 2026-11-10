@@ -23,6 +23,7 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('/dashboard/summary', [DashboardController::class, 'summary']);
     Route::get('/reports/warranties', [DashboardController::class, 'warranties']);
     Route::get('/reports/claims', [DashboardController::class, 'claims']);
+    Route::get('/reports/paid-services', [DashboardController::class, 'paidServices']);
     Route::post('/claims/summarize', [WarrantyClaimController::class, 'summarize']);
     Route::get('/paid-service-requests/eligible-units', [PaidServiceRequestController::class, 'eligibleUnits']);
     Route::get('/paid-service-requests', [PaidServiceRequestController::class, 'index']);

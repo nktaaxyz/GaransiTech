@@ -3,11 +3,20 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { getClaimReport, getToken, getWarrantyReport, type Claim, type Paginated, type Warranty } from "../lib/api";
+import {
+    getClaimReport,
+    getPaidServiceReport,
+    getToken,
+    getWarrantyReport,
+    type Claim,
+    type Paginated,
+    type PaidServiceRequest,
+    type Warranty,
+} from "../lib/api";
 import { TableSkeleton } from "../components/LoadingState";
 
-type ReportType = "warranties" | "claims";
-type ReportRow = Warranty | Claim;
+type ReportType = "warranties" | "claims" | "services";
+type ReportRow = Warranty | Claim | PaidServiceRequest;
 
 const claimStatusLabels: Record<string, string> = {
     received: "Diterima",
@@ -18,6 +27,24 @@ const claimStatusLabels: Record<string, string> = {
 };
 
 const warrantyStatusLabels: Record<string, string> = { active: "Aktif", expiring: "Segera berakhir", expired: "Berakhir" };
+
+const serviceStatusLabels: Record<PaidServiceRequest["status"], string> = {
+    requested: "Permintaan baru",
+    quoted: "Menunggu persetujuan biaya",
+    approved: "Biaya disetujui",
+    in_progress: "Sedang diservis",
+    completed: "Selesai",
+    cancelled: "Dibatalkan",
+};
+
+function formatServiceAmount(amount: string | null): string {
+    if (amount === null) return "Belum ada";
+    return new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0,
+    }).format(Number(amount));
+}
 
 export default function ReportsPage() {
     const router = useRouter();
@@ -46,7 +73,11 @@ export default function ReportsPage() {
         if (!getToken()) return;
         let isCurrent = true;
         const params = { from, to, search: appliedQuery, status, page };
-        const request = reportType === "warranties" ? getWarrantyReport(params) : getClaimReport(params);
+        const request = reportType === "warranties"
+            ? getWarrantyReport(params)
+            : reportType === "claims"
+                ? getClaimReport(params)
+                : getPaidServiceReport(params);
         request.then((response) => {
             if (!isCurrent) return;
             setError("");
@@ -77,7 +108,7 @@ export default function ReportsPage() {
             <header className="page-header">
                 <Link className="back-link" href="/">← Dashboard</Link>
                 <div className="page-header-content">
-                    <div><p className="dashboard-kicker">ANALISIS</p><h1>Laporan</h1><p>Tinjau registrasi garansi dan penanganan klaim berdasarkan periode.</p></div>
+                    <div><p className="dashboard-kicker">ANALISIS</p><h1>Laporan</h1><p>Tinjau garansi, klaim, dan servis berbayar berdasarkan periode.</p></div>
                 </div>
             </header>
             <section className="claims-page-content">
@@ -87,18 +118,20 @@ export default function ReportsPage() {
                         <div className="report-tabs" role="tablist" aria-label="Jenis laporan">
                             <button type="button" role="tab" aria-selected={reportType === "warranties"} className={reportType === "warranties" ? "active" : ""} onClick={() => switchReport("warranties")}>Garansi</button>
                             <button type="button" role="tab" aria-selected={reportType === "claims"} className={reportType === "claims" ? "active" : ""} onClick={() => switchReport("claims")}>Klaim</button>
+                            <button type="button" role="tab" aria-selected={reportType === "services"} className={reportType === "services" ? "active" : ""} onClick={() => switchReport("services")}>Servis</button>
                         </div>
                         <span className="report-total">{pagination.total} data</span>
                     </div>
                     <div className="report-filters">
-                        <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); setIsLoading(true); }} placeholder="Cari kode, produk, pelanggan..." aria-label="Cari laporan" /></label>
+                        <label className="search-field"><span aria-hidden="true">⌕</span><input value={query} onChange={(event) => { setQuery(event.target.value); setIsLoading(true); }} placeholder="Cari produk, pelanggan, serial..." aria-label="Cari laporan" /></label>
                         <label>Dari<input type="date" value={from} max={to || undefined} onChange={(event) => changePeriod("from", event.target.value)} /></label>
                         <label>Sampai<input type="date" value={to} min={from || undefined} onChange={(event) => changePeriod("to", event.target.value)} /></label>
-                        <label>Status<select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); setIsLoading(true); }}><option value="">Semua status</option>{reportType === "warranties" ? <><option value="active">Aktif</option><option value="expiring">Segera berakhir</option><option value="expired">Berakhir</option></> : Object.entries(claimStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+                        <label>Status<select value={status} onChange={(event) => { setStatus(event.target.value); setPage(1); setIsLoading(true); }}><option value="">Semua status</option>{reportType === "warranties" ? <><option value="active">Aktif</option><option value="expiring">Segera berakhir</option><option value="expired">Berakhir</option></> : reportType === "claims" ? Object.entries(claimStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>) : Object.entries(serviceStatusLabels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
                     </div>
                     <div className="claims-table-wrap">
-                        {isLoading ? <TableSkeleton rows={5} columns={5} /> : rows.length === 0 ? <div className="empty-state"><strong>Data tidak ditemukan</strong><span>Ubah periode, kata kunci, atau status laporan.</span></div> : <table className="claims-table claims-page-table">
-                            {reportType === "warranties" ? <><thead><tr><th>Kode garansi</th><th>Pelanggan</th><th>Produk / serial</th><th>Periode garansi</th><th>Status</th></tr></thead><tbody>{(rows as Warranty[]).map((warranty) => <tr key={warranty.id}><td><strong>{warranty.warranty_code}</strong></td><td>{warranty.product_unit.customer?.name || "-"}</td><td><strong>{warranty.product_unit.product?.name || "-"}</strong><small>{warranty.product_unit.serial_number}</small></td><td>{new Date(warranty.start_date).toLocaleDateString("id-ID")} - {new Date(warranty.end_date).toLocaleDateString("id-ID")}</td><td><span className={`status-badge status-${warranty.status}`}>{warrantyStatusLabels[warranty.status]}</span></td></tr>)}</tbody></> : <><thead><tr><th>Kode klaim</th><th>Pelanggan</th><th>Produk / serial</th><th>Tanggal klaim</th><th>Status</th></tr></thead><tbody>{(rows as Claim[]).map((claim) => <tr key={claim.id}><td><strong>{claim.claim_code}</strong></td><td>{claim.customer?.name || "-"}</td><td><strong>{claim.product?.name || "-"}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td><td>{new Date(claim.claim_date).toLocaleDateString("id-ID", { dateStyle: "medium" })}</td><td><span className={`status-badge status-${claim.status}`}>{claimStatusLabels[claim.status] || claim.status}</span></td></tr>)}</tbody></>}</table>}
+                        {isLoading ? <TableSkeleton rows={5} columns={reportType === "services" ? 7 : 5} /> : rows.length === 0 ? <div className="empty-state"><strong>Data tidak ditemukan</strong><span>Ubah periode, kata kunci, atau status laporan.</span></div> : <table className="claims-table claims-page-table">
+                            {reportType === "warranties" ? <><thead><tr><th>Kode garansi</th><th>Pelanggan</th><th>Produk / serial</th><th>Periode garansi</th><th>Status</th></tr></thead><tbody>{(rows as Warranty[]).map((warranty) => <tr key={warranty.id}><td><strong>{warranty.warranty_code}</strong></td><td>{warranty.product_unit.customer?.name || "-"}</td><td><strong>{warranty.product_unit.product?.name || "-"}</strong><small>{warranty.product_unit.serial_number}</small></td><td>{new Date(warranty.start_date).toLocaleDateString("id-ID")} - {new Date(warranty.end_date).toLocaleDateString("id-ID")}</td><td><span className={`status-badge status-${warranty.status}`}>{warrantyStatusLabels[warranty.status]}</span></td></tr>)}</tbody></> : reportType === "claims" ? <><thead><tr><th>Kode klaim</th><th>Pelanggan</th><th>Produk / serial</th><th>Tanggal klaim</th><th>Status</th></tr></thead><tbody>{(rows as Claim[]).map((claim) => <tr key={claim.id}><td><strong>{claim.claim_code}</strong></td><td>{claim.customer?.name || "-"}</td><td><strong>{claim.product?.name || "-"}</strong><small>{claim.serial_number || "Tanpa serial number"}</small></td><td>{new Date(claim.claim_date).toLocaleDateString("id-ID", { dateStyle: "medium" })}</td><td><span className={`status-badge status-${claim.status}`}>{claimStatusLabels[claim.status] || claim.status}</span></td></tr>)}</tbody></> : <><thead><tr><th>Pelanggan</th><th>Produk / serial</th><th>Mitra servis</th><th>Keluhan</th><th>Estimasi biaya</th><th>Tanggal</th><th>Status</th></tr></thead><tbody>{(rows as PaidServiceRequest[]).map((service) => <tr key={service.id}><td><strong>{service.product_unit?.customer?.name || service.customer_name || "-"}</strong><small>{service.customer_phone || "-"}</small></td><td><strong>{service.product_unit?.product?.name || service.product_name || "-"}</strong><small>{service.product_unit?.serial_number || service.serial_number || "Tanpa serial number"}</small></td><td>{service.vendor?.name || "Belum ditentukan"}</td><td>{service.issue_description}{service.notes && <small>{service.notes}</small>}</td><td>{formatServiceAmount(service.quoted_amount)}</td><td>{new Date(service.created_at).toLocaleDateString("id-ID", { dateStyle: "medium" })}</td><td><span className={`status-badge status-${service.status}`}>{serviceStatusLabels[service.status]}</span></td></tr>)}</tbody></>}
+                        </table>}
                     </div>
                     {pagination.last_page > 1 && <nav className="pagination-controls" aria-label="Halaman laporan"><button type="button" className="secondary-action" disabled={page <= 1} onClick={() => { setIsLoading(true); setPage((currentPage) => currentPage - 1); }}>Sebelumnya</button><span>Halaman {pagination.current_page} dari {pagination.last_page}</span><button type="button" className="secondary-action" disabled={page >= pagination.last_page} onClick={() => { setIsLoading(true); setPage((currentPage) => currentPage + 1); }}>Berikutnya</button></nav>}
                 </section>

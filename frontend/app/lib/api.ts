@@ -204,6 +204,10 @@ export function getClaimReport(params: { from?: string; to?: string; search?: st
   return request<Paginated<Claim>>(`/reports/claims${reportQuery(params)}`);
 }
 
+export function getPaidServiceReport(params: { from?: string; to?: string; search?: string; status?: string; page?: number } = {}): Promise<Paginated<PaidServiceRequest>> {
+  return request<Paginated<PaidServiceRequest>>(`/reports/paid-services${reportQuery(params)}`);
+}
+
 export async function getProductUnits(): Promise<ProductUnit[]> {
   const response = await request<Paginated<ProductUnit>>("/product-units");
   return response.data;
