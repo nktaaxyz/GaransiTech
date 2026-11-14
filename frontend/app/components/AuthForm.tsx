@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { FormEvent, useState } from "react";
 import { useRouter } from "next/navigation";
+import { API_URL } from "../lib/api";
 
 type Mode = "login" | "register";
 
@@ -11,8 +12,6 @@ type ApiResponse = {
   message?: string;
   errors?: Record<string, string[]>;
 };
-
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
 
 export default function AuthForm({ mode }: { mode: Mode }) {
   const isLogin = mode === "login";

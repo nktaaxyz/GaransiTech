@@ -62,11 +62,14 @@ class DashboardReportApiTest extends TestCase
 
         $this->getJson('/api/dashboard/summary')
             ->assertOk()
+            ->assertJsonPath('user.id', auth()->id())
             ->assertJsonPath('warranties.active', 1)
             ->assertJsonPath('warranties.expiring', 1)
             ->assertJsonPath('warranties.expired', 1)
             ->assertJsonPath('claims.received', 1)
-            ->assertJsonPath('claims.total', 1);
+            ->assertJsonPath('claims.total', 1)
+            ->assertJsonCount(1, 'recent_claims')
+            ->assertJsonPath('recent_claims.0.claim_code', 'CLM-SUMMARY');
     }
 
     public function test_reports_support_period_status_and_search_filters(): void

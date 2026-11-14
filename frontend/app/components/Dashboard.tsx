@@ -7,8 +7,6 @@ import {
   ApiUser,
   Claim,
   clearToken,
-  getClaimsPage,
-  getCurrentUser,
   getDashboardSummary,
   getToken,
   logout,
@@ -82,10 +80,10 @@ export default function Dashboard() {
       return;
     }
 
-    Promise.all([getCurrentUser(), getClaimsPage(), getDashboardSummary()])
-      .then(([currentUser, claimsPage, dashboardSummary]) => {
-        setUser(currentUser);
-        setClaims(claimsPage.data);
+    getDashboardSummary()
+      .then((dashboardSummary) => {
+        setUser(dashboardSummary.user);
+        setClaims(dashboardSummary.recent_claims);
         setSummary(dashboardSummary);
       })
       .catch((requestError: unknown) => {
@@ -174,7 +172,7 @@ export default function Dashboard() {
           <section className="dashboard-grid">
             <article className="activity-card" id="activity">
               <div className="section-heading"><div><p className="dashboard-kicker">PERFORMA</p><h2>Alur klaim</h2></div><span className="period-label">Saat ini</span></div>
-              <div className="progress-overview"><div><strong>{completionRate}%</strong><span>tingkat penyelesaian</span></div><div className="progress-ring" style={{ "--progress": `${completionRate * 3.6}deg` } as React.CSSProperties}><div>{completedClaims}/{claims.length || 0}</div></div></div>
+              <div className="progress-overview"><div><strong>{completionRate}%</strong><span>tingkat penyelesaian</span></div><div className="progress-ring" style={{ "--progress": `${completionRate * 3.6}deg` } as React.CSSProperties}><div>{completedClaims}/{totalClaims}</div></div></div>
               <div className="status-bars"><div><span>Diterima</span><b>{receivedClaims}</b><i><em style={{ width: `${totalClaims ? (receivedClaims / totalClaims) * 100 : 0}%` }} /></i></div><div><span>Selesai</span><b>{completedClaims}</b><i><em className="bar-success" style={{ width: `${completionRate}%` }} /></i></div><div><span>Ditolak</span><b>{rejectedClaims}</b><i><em className="bar-danger" style={{ width: `${totalClaims ? (rejectedClaims / totalClaims) * 100 : 0}%` }} /></i></div></div>
             </article>
             <article className="insight-card">

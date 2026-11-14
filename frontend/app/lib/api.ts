@@ -1,4 +1,4 @@
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000/api";
+export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://127.0.0.1:8000/api";
 const TOKEN_KEY = "garansitech_token";
 
 export type ApiUser = {
@@ -107,8 +107,10 @@ export type Paginated<T> = {
 };
 
 export type DashboardSummary = {
+  user: ApiUser;
   warranties: { active: number; expiring: number; expired: number; total: number };
   claims: { received: number; forwarded_to_vendor: number; processing_by_vendor: number; completed: number; rejected: number; total: number };
+  recent_claims: Claim[];
 };
 
 export function getToken(): string | null {

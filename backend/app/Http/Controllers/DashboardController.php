@@ -2,48 +2,85 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\PaidServiceRequest;
 use App\Models\Warranty;
 use App\Models\Warranty_claims;
-use App\Models\PaidServiceRequest;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
-    public function summary(): JsonResponse
+    public function summary(Request $request): JsonResponse
     {
         $today = CarbonImmutable::today();
         $threshold = $today->addDays((int) config('warranty.expiring_days', 30));
 
+        $warrantyStats = DB::table('warranties')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN end_date > ? AND NOT EXISTS (
+                    SELECT 1 FROM warranty_claims
+                    WHERE warranty_claims.warranty_id = warranties.id
+                    AND warranty_claims.status = 'completed'
+                ) THEN 1 ELSE 0 END), 0) as active",
+                [$threshold->toDateString()],
+            )
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN end_date >= ? AND end_date <= ? AND NOT EXISTS (
+                    SELECT 1 FROM warranty_claims
+                    WHERE warranty_claims.warranty_id = warranties.id
+                    AND warranty_claims.status = 'completed'
+                ) THEN 1 ELSE 0 END), 0) as expiring",
+                [$today->toDateString(), $threshold->toDateString()],
+            )
+            ->selectRaw(
+                "COALESCE(SUM(CASE WHEN end_date < ? OR EXISTS (
+                    SELECT 1 FROM warranty_claims
+                    WHERE warranty_claims.warranty_id = warranties.id
+                    AND warranty_claims.status = 'completed'
+                ) THEN 1 ELSE 0 END), 0) as expired",
+                [$today->toDateString()],
+            )
+            ->first();
+
+        $claimStats = DB::table('warranty_claims')
+            ->selectRaw('COUNT(*) as total')
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'received' THEN 1 ELSE 0 END), 0) as received")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'forwarded_to_vendor' THEN 1 ELSE 0 END), 0) as forwarded_to_vendor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'processing_by_vendor' THEN 1 ELSE 0 END), 0) as processing_by_vendor")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed")
+            ->selectRaw("COALESCE(SUM(CASE WHEN status = 'rejected' THEN 1 ELSE 0 END), 0) as rejected")
+            ->first();
+
+        $user = $request->user();
+
         return response()->json([
+            'user' => [
+                'id' => $user->id,
+                'name' => $user->name,
+                'email' => $user->email,
+            ],
             'warranties' => [
-                'active' => Warranty::query()
-                    ->whereDate('end_date', '>', $threshold)
-                    ->whereDoesntHave('claims', fn ($query) => $query->where('status', 'completed'))
-                    ->count(),
-                'expiring' => Warranty::query()
-                    ->whereDate('end_date', '>=', $today)
-                    ->whereDate('end_date', '<=', $threshold)
-                    ->whereDoesntHave('claims', fn ($query) => $query->where('status', 'completed'))
-                    ->count(),
-                'expired' => Warranty::query()
-                    ->where(function ($query) use ($today): void {
-                        $query
-                            ->whereDate('end_date', '<', $today)
-                            ->orWhereHas('claims', fn ($claimQuery) => $claimQuery->where('status', 'completed'));
-                    })
-                    ->count(),
-                'total' => Warranty::query()->count(),
+                'active' => (int) $warrantyStats->active,
+                'expiring' => (int) $warrantyStats->expiring,
+                'expired' => (int) $warrantyStats->expired,
+                'total' => (int) $warrantyStats->total,
             ],
             'claims' => [
-                'received' => Warranty_claims::query()->where('status', 'received')->count(),
-                'forwarded_to_vendor' => Warranty_claims::query()->where('status', 'forwarded_to_vendor')->count(),
-                'processing_by_vendor' => Warranty_claims::query()->where('status', 'processing_by_vendor')->count(),
-                'completed' => Warranty_claims::query()->where('status', 'completed')->count(),
-                'rejected' => Warranty_claims::query()->where('status', 'rejected')->count(),
-                'total' => Warranty_claims::query()->count(),
+                'received' => (int) $claimStats->received,
+                'forwarded_to_vendor' => (int) $claimStats->forwarded_to_vendor,
+                'processing_by_vendor' => (int) $claimStats->processing_by_vendor,
+                'completed' => (int) $claimStats->completed,
+                'rejected' => (int) $claimStats->rejected,
+                'total' => (int) $claimStats->total,
             ],
+            'recent_claims' => Warranty_claims::query()
+                ->with(['customer:id,name', 'product:id,name'])
+                ->latest('claim_date')
+                ->limit(5)
+                ->get(['id', 'claim_code', 'serial_number', 'claim_date', 'status', 'customer_id', 'product_id']),
         ]);
     }
 

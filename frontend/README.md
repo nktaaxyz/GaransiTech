@@ -55,7 +55,7 @@ Aplikasi ini menghubungkan ke backend Laravel melalui environment variable `NEXT
 Jika perlu, buat file `.env.local` dengan contoh:
 
 ```bash
-NEXT_PUBLIC_API_URL=http://localhost:8000/api
+NEXT_PUBLIC_API_URL=http://127.0.0.1:8000/api
 ```
 
 Foto bukti klaim diunggah ke backend dan dapat disertakan dalam PDF pengiriman vendor. Format yang didukung JPG dan PNG dengan ukuran maksimal 5 MB. Pratinjau foto juga disimpan di IndexedDB browser admin; pratinjau lokal tidak tersinkron antarperangkat.
